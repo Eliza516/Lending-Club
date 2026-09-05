@@ -1,0 +1,23 @@
+# Data — never committed (the raw Kaggle file is ~1.6 GB)
+data/
+!data/.gitkeep
+
+# Generated outputs
+artifacts/
+
+# Notebooks
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+env/
+*.egg-info/
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/
