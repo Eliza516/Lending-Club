@@ -36,7 +36,7 @@ kaggle datasets download -d wordsforthewise/lending-club -p data/raw --unzip
 #   data/raw/accepted_2007_to_2018Q4.csv.gz
 ```
 
-**No data? The notebooks still run.** If the file is missing, notebook 01 generates a
+**No data? The notebooks still run.** If the file is missing, notebook 02 generates a
 synthetic sample with the same schema, dtypes and plausible value ranges, so the whole
 pipeline executes end to end. Synthetic numbers are for smoke-testing only — never quote
 them as findings.
@@ -49,19 +49,62 @@ pip install -r requirements.txt
 jupyter lab
 ```
 
-Run **`notebooks/01_eda.ipynb` first**, then **`notebooks/02_modeling.ipynb`** — the
-first writes `data/processed/clean.parquet`, which the second reads.
+`xgboost` and `shap` are optional — both imports are guarded, so the notebooks run end to
+end without them.
+
+## Method: the 11-step predictive-modeling process
+
+Four notebooks, four stages. **Run them in order.**
+
+| Notebook | Stage | Steps | Produces |
+|---|---|---|---|
+| `01_problem_framing.ipynb` | A — before code | 1. Framing · 2. Type, target, metric | The decisions everything else depends on |
+| `02_data_and_features.ipynb` | B — data | 3. Understand · 4. Split · 5. EDA · 6. Clean · 7. Features | `clean.parquet`, `split_manifest.json`, figures 01–07 |
+| `03_modeling_and_evaluation.ipynb` | C — model | 8. Build · 9. Evaluate · 10. Explain | `metrics.csv`, figures 08–17 |
+| `04_packaging_and_monitoring.ipynb` | D — production | 11. Package, deploy, monitor | `model.joblib`, `model_card.json`, figures 18–19 |
+
+Notebook 01 loads no data at all — the process puts problem framing *before touching
+code*, and that is where the incumbent baseline and the cost of errors get decided.
+
+### Baselines
+
+The project's claim is not its absolute AUC but its **lift over the incumbent**:
+
+| # | Baseline | What it is |
+|---|---|---|
+| B0 | Majority class | Predict "never defaults" — the 80 %-accurate useless model |
+| **B1** | **`sub_grade` as a risk score** | **Lending Club's existing underwriting** — the real bar |
+
+### What each stage adds beyond a typical notebook
+
+- **Data dictionary with a timing test** — every column answers *"is this known at
+  application time?"* before it can be used as a feature.
+- **Data-logic checks** — inverted FICO bands, credit lines opened after the loan,
+  non-positive income.
+- **Missing-reason taxonomy** — blanks meaning "never happened" get an indicator column
+  instead of being median-imputed away.
+- **Overfitting check** — train-vs-CV gap per model, which is how the ensembles get caught.
+- **Error analysis by segment** — including by issue quarter, which sets the retraining
+  cadence.
+- **Fairness screen** — decline rate, FPR and FNR across proxy groups with a
+  disparate-impact ratio. Proxies only; the data has no protected attributes.
+- **SHAP and partial dependence** — per-applicant attribution and the shape of each effect.
+- **PSI drift monitoring and a retraining policy** — with explicit numeric triggers.
 
 ## Layout
 
 ```
-notebooks/01_eda.ipynb          Load → clean → OOT split → features → EDA figures
-notebooks/02_modeling.ipynb     Models → calibration → thresholds → evaluation
+notebooks/01_problem_framing.ipynb          Stage A - decisions, loads no data
+notebooks/02_data_and_features.ipynb        Stage B - data, split, EDA, cleaning, features
+notebooks/03_modeling_and_evaluation.ipynb  Stage C - models, evaluation, explanation
+notebooks/04_packaging_and_monitoring.ipynb Stage D - packaging, drift, retraining policy
 data/raw/                       Kaggle CSV or generated synthetic sample   (git-ignored)
-data/processed/clean.parquet    Hand-off between the two notebooks         (git-ignored)
-artifacts/figures/              Saved PNGs                                 (git-ignored)
-artifacts/metrics.csv           Model comparison table                     (git-ignored)
+data/processed/clean.parquet    Hand-off from notebook 02 to 03            (git-ignored)
+artifacts/figures/              Saved PNGs, numbered 01-19                 (git-ignored)
+artifacts/metrics.csv           Model comparison incl. both baselines      (git-ignored)
 artifacts/split_manifest.json   Auditable record of the shared split       (git-ignored)
+artifacts/model.joblib          Complete fitted pipeline                   (git-ignored)
+artifacts/model_card.json       Provenance, metrics, versions, limitations (git-ignored)
 CLAUDE.md                       Conventions, leakage rules, split protocol
 ```
 
@@ -114,6 +157,9 @@ unchanged to test.
    late test period with loans that resolved early.
 3. Accepted loans only — no rejected applicants, so this is risk *conditional on
    acceptance* (reject inference).
-4. Drift is measured by the OOT design but not corrected for.
+4. Drift is measured by the OOT design and monitored via PSI in notebook 04, but the
+   model is not drift-corrected — it needs scheduled retraining.
+5. The fairness screen uses proxies (region, income band, housing); the data contains no
+   protected attributes, so it is indicative, not a compliance audit.
 
 See `CLAUDE.md` for the full leakage rules and project conventions.
