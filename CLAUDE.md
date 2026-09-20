@@ -41,6 +41,8 @@ artifacts/metrics.csv         Model comparison incl. both baselines  (git-ignore
 artifacts/split_manifest.json Auditable record of the shared split   (git-ignored)
 artifacts/model.joblib        Complete fitted pipeline               (git-ignored)
 artifacts/model_card.json     Provenance, metrics, versions          (git-ignored)
+
+docs/related_work.md          Benchmark comparison vs published projects (committed)
 ```
 
 ### Where does new code go?
@@ -191,6 +193,23 @@ Also required and easy to drop when editing:
   answered** before it can be used as a feature.
 - Target encoding is deliberately unused. If added, it must be `TargetEncoder` inside the
   `Pipeline` so it fits out-of-fold.
+
+## Competitive positioning
+
+`docs/related_work.md` benchmarks this project against six published Lending Club projects
+and one peer-reviewed paper, with citations. Keep it current when results change. Key
+facts from it that constrain what we may claim:
+
+- The published AUC range on this dataset is **0.678–0.735**, which confirms the
+  0.68–0.72 band above. Out-of-time projects score *lower* than random-split ones, as our
+  §9.8 predicts.
+- Models beat Lending Club's own grade by only **+0.012 to +0.018 AUC** in the two
+  published projects that measured it. A large lift over B1 is a red flag, not a win.
+- **Fairness screening is our clearest differentiator** — none of the surveyed projects
+  does it.
+- We are **behind** published work on: right-censoring (others restrict to matured
+  vintages), cost realism (ours is a placeholder), confidence intervals on the lift, and
+  enforcing leakage rules in code rather than in documentation. Do not overclaim.
 
 ## Limitations that must stay in the write-up
 
