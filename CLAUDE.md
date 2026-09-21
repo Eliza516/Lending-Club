@@ -49,7 +49,7 @@ docs/related_work.md          Benchmark comparison vs published projects (commit
 
 | Step | Topic | Lives in |
 |---|---|---|
-| 1 | Problem framing, cost of errors, incumbent baseline | NB01 §1 |
+| 1 | Problem summary + input/output spec, framing, cost of errors, incumbent baseline | NB01 §1 |
 | 2 | Problem type, target rule, metric choice, baseline spec | NB01 §2 |
 | 3 | Data dictionary, granularity, load, target, leakage block | NB02 §3 |
 | 4 | The out-of-time split + manifest | NB02 §4 |
