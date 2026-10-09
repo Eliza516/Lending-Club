@@ -618,9 +618,10 @@ grade (Phase 14) nói khác.
 **2. Tôi ghi chú right-censoring; người khác đã giải quyết nó.** Lượt chạy thật cho thấy thiệt
 hại cụ thể: chỉ 37.8% khoản vay sau mốc cắt đã ngã ngũ, tỷ lệ split đảo thành 61/39, các quý
 test 2016–2017 bị làm giàu bằng default, các quý 2018 bị làm giàu bằng trả trước, và độ dốc
-suy giảm giả ở Phase 15 đến từ chính các quý cuối đó. Một project được khảo sát giới hạn vào
-các khoản vay 36 tháng giải ngân 2012–2015, toàn bộ đã đáo hạn tính đến bản chụp 2018 Q4 —
-chỉ còn 0.025% chưa ngã ngũ. Đó là thiết kế **tốt hơn hẳn** cách tôi làm là lọc rồi viết
+suy giảm giả ở Phase 15 đến từ chính các quý cuối đó. Cả hai project out-of-time được khảo
+sát đều chỉ dùng khoản vay đã đáo hạn: một project giới hạn vào khoản 36 tháng giải ngân
+2012–2015 (chỉ còn 0.025% chưa ngã ngũ), project kia giữ khoản vay từ 2010 có kỳ hạn 36 hoặc
+60 tháng đã kết thúc trước 2018-12. Đó là thiết kế **tốt hơn hẳn** cách tôi làm là lọc rồi viết
 limitation. Đây vẫn là thay đổi có giá trị cao nhất hiện có, và nó còn mở khoá được 49 cột
 `sparse_pre2012_bureau`.
 

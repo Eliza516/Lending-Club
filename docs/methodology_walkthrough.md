@@ -612,9 +612,10 @@ the grade ablation (Phase 14) say otherwise.
 **2. I documented right-censoring; others solved it.** The real run shows the damage
 concretely: only 37.8% of post-cutoff loans had resolved, the split ratio flipped to 61/39,
 2016–2017 test quarters are enriched with defaults, 2018 quarters with prepayments, and
-the fake decay slope in Phase 15 comes from those last quarters. One surveyed project
-restricts to 36-month loans issued 2012–2015, all of which had matured by the 2018 Q4
-snapshot — leaving 0.025% unresolved. That is strictly better than my approach of
+the fake decay slope in Phase 15 comes from those last quarters. Both surveyed
+out-of-time projects restrict to matured loans: one to 36-month loans issued 2012–2015
+(0.025% left unresolved), the other to loans from 2010 on whose 36- or 60-month term had
+elapsed by 2018-12. That is strictly better than my approach of
 filtering and writing a limitation. It is still the highest-value change available, and
 it would also unlock the 49 `sparse_pre2012_bureau` columns.
 

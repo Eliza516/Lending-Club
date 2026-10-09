@@ -15,9 +15,11 @@ DS66B-2.xlsx`.
 ### Hard constraints from the brief
 
 - **All writing in English**, 100% — markdown cells, figure captions, report, slides.
-  The one exception is `docs/methodology_walkthrough.vi.md`, an internal-reading
-  translation. Its English counterpart is the deliverable; edit both together or the
-  translation goes stale.
+  The exceptions are two internal-reading files in Vietnamese:
+  `docs/methodology_walkthrough.vi.md`, a translation whose English counterpart is the
+  deliverable (edit both together or the translation goes stale), and
+  `docs/related_work_tong_hop.vi.md`, the team's own benchmark table. Neither goes into
+  the report.
 - **Every figure and table needs a caption AND a discussion** of what it shows.
   Figures with no surrounding discussion lose marks.
 - **Every metric used must be explainable** — do not add a metric to the comparison
@@ -50,6 +52,8 @@ docs/methodology_walkthrough.md  Decision-by-decision account of how the model w
                               built, and why                             (committed)
 docs/methodology_walkthrough.vi.md  Vietnamese translation of the above, for internal
                               reading only -- the English file is the deliverable
+docs/related_work_tong_hop.vi.md  Team's own benchmark table in Vietnamese, internal
+                              reading only -- docs/related_work.md is the deliverable
 ```
 
 ### Where does new code go?

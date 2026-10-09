@@ -47,7 +47,7 @@ behind. Both matter.
 | Project | Split | Best model AUC | Incumbent baseline | Lift |
 |---|---|---|---|---|
 | **vaibhavkev/credit-risk** | **OOT**: train Jan 2012–Jun 2014, val Jul–Dec 2014, test 2015 | XGBoost (monotone) **0.696** (Gini 0.392, KS 0.284); LogReg 0.683 | LC sub-grade **0.679**, LC rate 0.678 | **+0.018**, paired-bootstrap 95 % CI [+0.016, +0.020] |
-| **Arturo-GA/lendingclub-default-risk** | **OOT**: 70 % oldest train / 15 % val / 15 % newest test | LightGBM **0.7151** (Gini 0.4302, KS 0.3137); LogReg 0.7041; WoE scorecard 0.704 | not reported | — |
+| **Arturo-GA/lendingclub-default-risk** | **OOT**: 70 % oldest train / 15 % val / 15 % newest test, on **matured loans only** (issued 2010+, 36- or 60-month term already elapsed by 2018-12; ~800k loans) | LightGBM **0.7151** (Gini 0.4302, KS 0.3137); LogReg 0.7041; WoE scorecard 0.704 | not reported | — |
 | **Tanish-Srivastava/credit-risk-scorecard** | random | WoE + LogReg **0.692** (Gini 0.385, KS 27.7) | LC grade **0.680** | +0.012 |
 | **Arnav618/lending-club-credit-risk** | not specified | tuned XGBoost **0.7265** (baseline 0.7177), bootstrap CI [0.7127, 0.7226] | not reported | — |
 | **Nasha14/Lending-Club-Loan-Default-Prediction** | not specified | XGBoost **0.735**; LogReg 0.649 | not reported | — |
@@ -161,11 +161,17 @@ This section is not padding. These are real deficits against specific published 
 ### 5.1 Right-censoring: solved by others, only documented by us
 
 Our limitation 2 says the terminal-status filter enriches the late test period with loans
-that resolved early. **vaibhavkev actually fixes this**: restrict to *"36-month loans
-issued 2012–2015"* which *"had all reached maturity by the 2018 Q4 snapshot"*, leaving only
-*"147 of 589,635 (0.025 %)"* unresolved.
+that resolved early. **Both out-of-time projects in §2 actually fix this:**
 
-That is a strictly better design than ours. Adopting it is the single highest-value change
+- **vaibhavkev** restricts to *"36-month loans issued 2012–2015"* which *"had all reached
+  maturity by the 2018 Q4 snapshot"*, leaving only *"147 of 589,635 (0.025 %)"* unresolved.
+- **Arturo-GA** keeps loans originated from 2010 whose term (36 or 60 months) had already
+  elapsed by the 2018-12 cut — *"Sin este filtro, las cosechas 2016–2018 contienen solo los
+  préstamos que se resolvieron antes de tiempo (prepagos y defaults tempranos)"* — leaving
+  about 800k loans. Unlike vaibhavkev it keeps the 60-month product.
+
+That is a strictly better design than ours, and among the OOT projects we are the only one
+not using it. Adopting it is the single highest-value change
 available to this project.
 
 The real run makes the cost of not doing it concrete. Only 37.8% of our post-cutoff loans
