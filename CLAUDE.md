@@ -43,6 +43,8 @@ artifacts/model.joblib        Complete fitted pipeline               (git-ignore
 artifacts/model_card.json     Provenance, metrics, versions          (git-ignored)
 
 docs/related_work.md          Benchmark comparison vs published projects (committed)
+docs/methodology_walkthrough.md  Decision-by-decision account of how the model was
+                              built, and why                             (committed)
 ```
 
 ### Where does new code go?

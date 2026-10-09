@@ -107,6 +107,7 @@ artifacts/model.joblib          Complete fitted pipeline                   (git-
 artifacts/model_card.json       Provenance, metrics, versions, limitations (git-ignored)
 CLAUDE.md                       Conventions, leakage rules, split protocol
 docs/related_work.md            Benchmark comparison vs published projects
+docs/methodology_walkthrough.md How and why each modelling decision was made
 ```
 
 ## Train / test split protocol
@@ -163,6 +164,7 @@ unchanged to test.
 5. The fairness screen uses proxies (region, income band, housing); the data contains no
    protected attributes, so it is indicative, not a compliance audit.
 
-See `CLAUDE.md` for the full leakage rules and project conventions, and
+See `docs/methodology_walkthrough.md` for the reasoning behind every decision,
+`CLAUDE.md` for the full leakage rules and project conventions, and
 `docs/related_work.md` for how this project compares against published work on the same
 dataset — including where it is ahead, and where it is behind.
