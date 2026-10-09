@@ -202,7 +202,7 @@ Also required and easy to drop when editing:
   and `LEAKAGE_COLUMNS` are **derived** from it — never edit them directly. A new column
   from a data refresh must be given a bucket, and its timing answered in the §3.3 data
   dictionary, before it can be used.
-- The largest bucket is `sparse_pre2012_bureau` (50 columns) — real application-time
+- The largest bucket is `sparse_pre2012_bureau` (49 columns) — real application-time
   bureau fields that are empty before ~2012, which is inside our training window. They are
   excluded by scope, not because they leak. Restricting training to 2012+ vintages would
   make most of them usable, and pairs with the matured-vintage fix in
