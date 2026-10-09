@@ -25,32 +25,64 @@ DS66B-2.xlsx`.
 
 ## Layout
 
+The project follows an **11-step predictive-modeling process**, four stages, one notebook
+per stage. Run them in order.
+
 ```
-notebooks/01_eda.ipynb        Load → clean → OOT split → feature engineering → EDA
-notebooks/02_modeling.ipynb   Models → calibration → thresholds → evaluation
+notebooks/01_problem_framing.ipynb          Stage A - Steps 1-2   (decisions, no data)
+notebooks/02_data_and_features.ipynb        Stage B - Steps 3-7   (data -> clean.parquet)
+notebooks/03_modeling_and_evaluation.ipynb  Stage C - Steps 8-10  (models, eval, explain)
+notebooks/04_packaging_and_monitoring.ipynb Stage D - Step 11     (package, monitor)
+
 data/raw/                     Kaggle CSV or generated synthetic sample (git-ignored)
-data/processed/clean.parquet  Hand-off from notebook 01 to 02 (git-ignored)
-artifacts/figures/            Saved PNGs (git-ignored)
-artifacts/metrics.csv         Model comparison table (git-ignored)
-artifacts/split_manifest.json Auditable record of the shared split (git-ignored)
+data/processed/clean.parquet  Hand-off from notebook 02 to 03        (git-ignored)
+artifacts/figures/            Saved PNGs, numbered 01-19             (git-ignored)
+artifacts/metrics.csv         Model comparison incl. both baselines  (git-ignored)
+artifacts/split_manifest.json Auditable record of the shared split   (git-ignored)
+artifacts/model.joblib        Complete fitted pipeline               (git-ignored)
+artifacts/model_card.json     Provenance, metrics, versions          (git-ignored)
+
+docs/related_work.md          Benchmark comparison vs published projects (committed)
 ```
+
+### Where does new code go?
+
+| Step | Topic | Lives in |
+|---|---|---|
+| 1 | Problem summary + input/output spec, framing, cost of errors, incumbent baseline | NB01 §1 |
+| 2 | Problem type, target rule, metric choice, baseline spec | NB01 §2 |
+| 3 | Data dictionary, granularity, load, target, leakage block | NB02 §3 |
+| 4 | The out-of-time split + manifest | NB02 §4 |
+| 5 | EDA (training rows only) | NB02 §5 |
+| 6 | Logic checks, cleaning, missingness, column screening | NB02 §6 |
+| 7 | Feature engineering | NB02 §7 |
+| 8 | Baselines, models, CV, overfitting check, tuning | NB03 §8 |
+| 9 | Calibration, threshold, metrics, error analysis, fairness | NB03 §9 |
+| 10 | Permutation importance, SHAP, partial dependence | NB03 §10 |
+| 11 | Packaging, round-trip, PSI, retraining policy | NB04 §11 |
+
+**Execution order vs step order.** NB02 runs Step 6 and 7 *before* Step 5: EDA cannot
+precede cleaning because `int_rate` is the string `"13.56%"` in the raw file, and several
+figures use engineered features. What matters is that EDA precedes every modelling
+decision and sees training rows only. The process is a loop, not a line.
 
 ## Notebook-first rule
 
 **Do not add a `src/` package or standalone `.py` modules.** The course deliverable is
-a notebook. New pipeline code goes into cells in the two existing notebooks. Helper
-functions are defined in a cell near their first use, not in an imported file.
+a notebook. New pipeline code goes into cells in the four existing notebooks — see the
+table above for which one. Helper functions are defined in a cell near their first use,
+not in an imported file.
 
 ## Setup and run
 
 ```bash
 pip install -r requirements.txt
 jupyter lab
-# Run notebooks/01_eda.ipynb top to bottom, then notebooks/02_modeling.ipynb.
+# Run notebooks 01 -> 02 -> 03 -> 04 in order, each top to bottom.
 ```
 
-Notebook 01 falls back to a **generated synthetic sample** when the real CSV is absent,
-so both notebooks always run end to end. Synthetic results are for smoke-testing the
+Notebook 02 falls back to a **generated synthetic sample** when the real CSV is absent,
+so every notebook always runs end to end. Synthetic results are for smoke-testing the
 pipeline only — never quote them as findings.
 
 ---
@@ -61,7 +93,7 @@ Two distinct failure modes. Both are graded, and both are easy to reintroduce.
 
 ### 1. Target leakage — features unknowable at application time
 
-Dropped by name in notebook 01 via `LEAKAGE_COLUMNS`. Never reintroduce any of:
+Dropped by name in notebook 02 via `LEAKAGE_COLUMNS`. Never reintroduce any of:
 
 | Columns | Why they leak |
 |---|---|
@@ -137,9 +169,51 @@ Rules:
 - Assert `train.issue_d.max() < test.issue_d.min()` — a one-line guard against
   look-ahead.
 
+## Process discipline (the 11-step method)
+
+The project follows an 11-step predictive-modeling process. Three ordering rules matter
+more than the rest, because breaking them invalidates results silently:
+
+1. **Baselines before models, models before tuning** (NB03 §8). Two baselines exist: B0
+   majority class, and **B1 `sub_grade` — the incumbent underwriting rule**. The project's
+   claim is the *lift over B1*, not the absolute AUC. If a model cannot beat B1, report
+   that; do not tune until it appears to.
+2. **The split is decided before exploring** (NB02 §4, before §5). An analyst who has
+   studied the test period has already leaked it through their own choices.
+3. **The test set is opened once** (NB03 §9.4). Thresholds are chosen on the calibration
+   slice; tuning is scored with `TimeSeriesSplit` on training data only.
+
+Also required and easy to drop when editing:
+
+- Every figure needs a caption, a discussion, **and an `Action →` line**. A figure that
+  leads to no action gets cut, not kept.
+- The fairness screen (NB03 §9.7) is a **proxy** screen — the data has no protected
+  attributes. Never describe it as a compliance audit.
+- Any new column must be added to the NB02 §3.2 data dictionary **with its timing
+  answered** before it can be used as a feature.
+- Target encoding is deliberately unused. If added, it must be `TargetEncoder` inside the
+  `Pipeline` so it fits out-of-fold.
+
+## Competitive positioning
+
+`docs/related_work.md` benchmarks this project against six published Lending Club projects
+and one peer-reviewed paper, with citations. Keep it current when results change. Key
+facts from it that constrain what we may claim:
+
+- The published AUC range on this dataset is **0.678–0.735**, which confirms the
+  0.68–0.72 band above. Out-of-time projects score *lower* than random-split ones, as our
+  §9.8 predicts.
+- Models beat Lending Club's own grade by only **+0.012 to +0.018 AUC** in the two
+  published projects that measured it. A large lift over B1 is a red flag, not a win.
+- **Fairness screening is our clearest differentiator** — none of the surveyed projects
+  does it.
+- We are **behind** published work on: right-censoring (others restrict to matured
+  vintages), cost realism (ours is a placeholder), confidence intervals on the lift, and
+  enforcing leakage rules in code rather than in documentation. Do not overclaim.
+
 ## Limitations that must stay in the write-up
 
-Do not delete these from the conclusion of notebook 02. They are the difference between
+Do not delete these from the conclusion of notebook 03. They are the difference between
 a defensible report and an overclaiming one.
 
 1. **`issue_d` is a proxy for application time.** It is the loan *issue* date. Using it
