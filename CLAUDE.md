@@ -196,8 +196,17 @@ Also required and easy to drop when editing:
   leads to no action gets cut, not kept.
 - The fairness screen (NB03 §9.7) is a **proxy** screen — the data has no protected
   attributes. Never describe it as a compliance audit.
-- Any new column must be added to the NB02 §3.2 data dictionary **with its timing
-  answered** before it can be used as a feature.
+- **The 151 → 30 column reduction is rule-based (NB02 §3.2), not a hand-written list.**
+  `classify_column()` puts every column in the file into exactly one bucket, and an
+  assertion fails the notebook if any column is left `UNCLASSIFIED`. `APPLICATION_COLUMNS`
+  and `LEAKAGE_COLUMNS` are **derived** from it — never edit them directly. A new column
+  from a data refresh must be given a bucket, and its timing answered in the §3.3 data
+  dictionary, before it can be used.
+- The largest bucket is `sparse_pre2012_bureau` (50 columns) — real application-time
+  bureau fields that are empty before ~2012, which is inside our training window. They are
+  excluded by scope, not because they leak. Restricting training to 2012+ vintages would
+  make most of them usable, and pairs with the matured-vintage fix in
+  `docs/related_work.md`.
 - Target encoding is deliberately unused. If added, it must be `TargetEncoder` inside the
   `Pipeline` so it fits out-of-fold.
 
