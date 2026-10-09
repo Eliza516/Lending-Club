@@ -151,14 +151,8 @@ Consequences to preserve:
 
 ## The shared split — out-of-time, not random
 
-**Scope — matured vintages only.** The model is trained and tested on **36-month loans
-issued 2012-01 to 2015-12** (NB02 §3.6). Every one of them reached its scheduled maturity
-before the 2018 Q4 snapshot, so the outcome is known; an assertion fails the notebook if
-more than 1% of in-scope loans are unresolved. This replaces the earlier 2007–2018 window,
-whose recent vintages were a biased, early-resolving subsample (right-censoring).
-
-The split is **out-of-time (OOT)** within that scope: sorted by `issue_d`, loans issued
-**before `2015-01-01` are train** (2012–2014), loans issued in 2015 are test.
+The split is **out-of-time (OOT)**: sorted by `issue_d`, loans issued **before
+`2016-01-01` are train**, on or after are test.
 
 Why not a random split: default is a forecasting problem. Applicants arrive in time
 order, and Lending Club's product mix, credit policy and macroeconomic backdrop drift
@@ -170,10 +164,8 @@ RNG, so other groups reproduce it exactly regardless of implementation.
 
 Rules:
 
-- **Never change the scope or the cutoff** without regenerating
-  `artifacts/split_manifest.json` and telling the other groups on this dataset. Both
-  changed once (2007–2018 / 2016-01-01 → 36-month 2012–2015 / 2015-01-01); the other
-  groups must be told.
+- **Never change the cutoff** without regenerating `artifacts/split_manifest.json` and
+  telling the other groups on this dataset.
 - Cross-validate with **`TimeSeriesSplit` ordered by `issue_d`**, never shuffled
   `KFold` / `StratifiedKFold` — shuffled folds reintroduce exactly the look-ahead the
   OOT split removes.
@@ -214,10 +206,10 @@ Also required and easy to drop when editing:
   from a data refresh must be given a bucket, and its timing answered in the §3.3 data
   dictionary, before it can be used.
 - The largest bucket is `sparse_pre2012_bureau` (49 columns) — real application-time
-  bureau fields that are empty before ~2012. They are not leakage. Now that the scope
-  starts in 2012 most of them are usable; they are still excluded **deliberately**, so the
-  effect of the scope change can be measured on its own. Promoting them is the next
-  follow-up.
+  bureau fields that are empty before ~2012, which is inside our training window. They are
+  excluded by scope, not because they leak. Restricting training to 2012+ vintages would
+  make most of them usable, and pairs with the matured-vintage fix in
+  `docs/related_work.md`.
 - Target encoding is deliberately unused. If added, it must be `TargetEncoder` inside the
   `Pipeline` so it fits out-of-fold.
 
@@ -234,11 +226,9 @@ facts from it that constrain what we may claim:
   published projects that measured it. A large lift over B1 is a red flag, not a win.
 - **Fairness screening is our clearest differentiator** — none of the surveyed projects
   does it.
-- We now use the same matured-vintage design as vaibhavkev (36-month, 2012–2015, test
-  2015), so our numbers are directly comparable with theirs.
-- We are **behind** published work on: cost realism (ours is a placeholder), confidence
-  intervals on the lift, and enforcing leakage rules in code rather than in
-  documentation. Do not overclaim.
+- We are **behind** published work on: right-censoring (others restrict to matured
+  vintages), cost realism (ours is a placeholder), confidence intervals on the lift, and
+  enforcing leakage rules in code rather than in documentation. Do not overclaim.
 
 ## Limitations that must stay in the write-up
 
@@ -250,13 +240,13 @@ a defensible report and an overclaiming one.
    on this dataset, but the dataset never records the application/decision moment. Any
    application-to-issuance lag is invisible, so features are dated slightly later than a
    real scorecard would see them.
-2. **Maturity scope — censoring removed, coverage narrowed.** Keeping only terminal
-   statuses on a 2007–2018 window kept only the early-resolving loans of recent vintages
-   (37.8% of post-2016 loans had resolved; the bias flipped from early charge-offs to early
-   prepayments as vintages got younger). The matured scope (36-month, 2012–2015) removes
-   that bias, at a price: the model has **never seen a 60-month loan or a post-2015
-   vintage**. It must not be applied to 60-month loans, and its test year (2015) is three
-   years older than the end of the data.
+2. **Maturity / right-censoring bias.** Keeping only terminal statuses discards `Current`
+   loans. 36- and 60-month loans issued near the end of the window have not matured, so
+   the post-cutoff test set keeps only loans that resolved early (37.8% of post-cutoff
+   loans; 11.4% of 2018 issues). The bias changes sign with vintage age: 2016–2017
+   quarters are enriched with early charge-offs, while the newest quarters are enriched
+   with early *prepayments* (2018Q4 defaults at 2.4%). The test default rate is not the
+   true one, and the last two test quarters are not usable evidence of model decay.
 3. **Accepted-loans-only selection bias.** Training data covers applicants Lending Club
    already approved. This estimates default risk *conditional on acceptance*, not for the
    through-the-door population (the reject-inference problem).
