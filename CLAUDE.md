@@ -15,9 +15,11 @@ DS66B-2.xlsx`.
 ### Hard constraints from the brief
 
 - **All writing in English**, 100% — markdown cells, figure captions, report, slides.
-  The one exception is `docs/methodology_walkthrough.vi.md`, an internal-reading
-  translation. Its English counterpart is the deliverable; edit both together or the
-  translation goes stale.
+  The exceptions are two internal-reading files in Vietnamese:
+  `docs/methodology_walkthrough.vi.md`, a translation whose English counterpart is the
+  deliverable (edit both together or the translation goes stale), and
+  `docs/related_work_tong_hop.vi.md`, the team's own benchmark table. Neither goes into
+  the report.
 - **Every figure and table needs a caption AND a discussion** of what it shows.
   Figures with no surrounding discussion lose marks.
 - **Every metric used must be explainable** — do not add a metric to the comparison
@@ -50,6 +52,8 @@ docs/methodology_walkthrough.md  Decision-by-decision account of how the model w
                               built, and why                             (committed)
 docs/methodology_walkthrough.vi.md  Vietnamese translation of the above, for internal
                               reading only -- the English file is the deliverable
+docs/related_work_tong_hop.vi.md  Team's own benchmark table in Vietnamese, internal
+                              reading only -- docs/related_work.md is the deliverable
 ```
 
 ### Where does new code go?
@@ -172,7 +176,10 @@ Rules:
 - The random stratified split (`random_state=42`, `test_size=0.2`) is computed **only**
   as a reference number, to report the OOT-vs-random gap. It is not the headline result.
 - OOT metrics should come out **lower** than random-split metrics. If they come out
-  higher, something is wrong — investigate, do not report it.
+  higher, something is wrong — investigate, do not report it. Exception, already
+  investigated: raw PR-AUC comes out higher OOT on the real file because test prevalence
+  is higher (22.4% vs 20.0%). Compare PR-AUC relative to prevalence (OOT 1.81× vs random
+  1.98×), which is lower as expected.
 - Assert `train.issue_d.max() < test.issue_d.min()` — a one-line guard against
   look-ahead.
 
@@ -196,8 +203,17 @@ Also required and easy to drop when editing:
   leads to no action gets cut, not kept.
 - The fairness screen (NB03 §9.7) is a **proxy** screen — the data has no protected
   attributes. Never describe it as a compliance audit.
-- Any new column must be added to the NB02 §3.2 data dictionary **with its timing
-  answered** before it can be used as a feature.
+- **The 151 → 30 column reduction is rule-based (NB02 §3.2), not a hand-written list.**
+  `classify_column()` puts every column in the file into exactly one bucket, and an
+  assertion fails the notebook if any column is left `UNCLASSIFIED`. `APPLICATION_COLUMNS`
+  and `LEAKAGE_COLUMNS` are **derived** from it — never edit them directly. A new column
+  from a data refresh must be given a bucket, and its timing answered in the §3.3 data
+  dictionary, before it can be used.
+- The largest bucket is `sparse_pre2012_bureau` (49 columns) — real application-time
+  bureau fields that are empty before ~2012, which is inside our training window. They are
+  excluded by scope, not because they leak. Restricting training to 2012+ vintages would
+  make most of them usable, and pairs with the matured-vintage fix in
+  `docs/related_work.md`.
 - Target encoding is deliberately unused. If added, it must be `TargetEncoder` inside the
   `Pipeline` so it fits out-of-fold.
 
@@ -230,8 +246,11 @@ a defensible report and an overclaiming one.
    real scorecard would see them.
 2. **Maturity / right-censoring bias.** Keeping only terminal statuses discards `Current`
    loans. 36- and 60-month loans issued near the end of the window have not matured, so
-   the post-cutoff test set is enriched with loans that resolved early —
-   disproportionately early charge-offs. Its default rate is not the true one.
+   the post-cutoff test set keeps only loans that resolved early (37.8% of post-cutoff
+   loans; 11.4% of 2018 issues). The bias changes sign with vintage age: 2016–2017
+   quarters are enriched with early charge-offs, while the newest quarters are enriched
+   with early *prepayments* (2018Q4 defaults at 2.4%). The test default rate is not the
+   true one, and the last two test quarters are not usable evidence of model decay.
 3. **Accepted-loans-only selection bias.** Training data covers applicants Lending Club
    already approved. This estimates default risk *conditional on acceptance*, not for the
    through-the-door population (the reject-inference problem).
