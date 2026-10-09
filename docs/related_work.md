@@ -16,11 +16,11 @@ resolved loans after cleaning). **Out-of-time split**: train issued 2007-06 → 
 
 | | ROC-AUC | PR-AUC | KS | Gini |
 |---|---|---|---|---|
-| **Our best model — XGBoost (calibrated)** | **0.7161** | 0.4068 | 0.314 | 0.432 |
-| Our Logistic Regression (calibrated; the packaged model) | 0.7076 | 0.3895 | 0.301 | 0.415 |
+| Our best model — XGBoost (calibrated; not deployed) | 0.7161 | 0.4068 | 0.314 | 0.432 |
+| **Our Logistic Regression (calibrated; the packaged model)** | 0.7076 | 0.3895 | 0.301 | 0.415 |
 | Our B1 `sub_grade` incumbent | 0.6871 | 0.3648 | 0.271 | 0.374 |
-| **Our lift over incumbent (XGBoost)** | **+0.0290** | +0.0420 | | |
-| Our lift over incumbent (Logistic Regression) | +0.0205 | +0.0246 | | |
+| **Our lift over incumbent — Logistic Regression (packaged, headline)** | **+0.0205** | +0.0246 | | |
+| Our lift over incumbent — XGBoost (best, not deployed) | +0.0290 | +0.0420 | | |
 
 How this sits against the published work in §2:
 
@@ -29,7 +29,9 @@ How this sits against the published work in §2:
   0.4302, KS 0.3137 vs our Gini 0.432, KS 0.314).
 - **Our incumbent matches theirs.** B1 at 0.687 is close to vaibhavkev's LC sub-grade
   (0.679) and Tanish-Srivastava's LC grade (0.680).
-- **Our lift is larger than theirs** — +0.029 vs +0.018 and +0.012. Treat this as a claim
+- **Our lift is at or above theirs** — +0.0205 for the packaged logistic regression and
+  +0.029 for XGBoost, vs +0.018 and +0.012. We package logistic regression on governance
+  grounds, so +0.0205 is the headline. Treat this as a claim
   to verify, not a win: we have no confidence interval (§5.3) and have not run the grade
   ablation (§5.6). Different test windows (2016–2018 vs 2015) may account for part of it.
 - **The OOT-vs-random gap reproduces.** Under the reference random split our ROC-AUC rises
@@ -184,7 +186,7 @@ a guess that is demonstrably load-bearing.
 ### 5.3 No confidence interval on our lift
 
 vaibhavkev reports +0.018 AUC with a **paired-bootstrap 95 % CI [+0.016, +0.020]**; Arnav618
-reports a bootstrap CI too. We report a point estimate (+0.0290). Without a CI we cannot
+reports a bootstrap CI too. We report point estimates (+0.0205 packaged, +0.0290 best). Without a CI we cannot
 claim our lift over B1 is statistically distinguishable from zero — or, given it exceeds
 every published lift, that it is not inflated.
 

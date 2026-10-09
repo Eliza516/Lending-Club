@@ -562,8 +562,11 @@ calibration** (OOT ROC-AUC 0.7076, PR-AUC 0.3895). That choice was originally ju
 the synthetic run, where the ensembles overfit. On real data they do not, and XGBoost is
 ahead by 0.0085 ROC-AUC / 0.017 PR-AUC. Logistic regression is still defensible —
 coefficient-level auditability is what an adverse-action notice needs — but the reason is
-now governance, not generalisation, and it costs measurable performance. That trade-off is
-an open decision (Phase 16).
+now governance, not generalisation, and it costs measurable performance. **Decision: keep
+logistic regression**, accepting the 0.0085 ROC-AUC cost in exchange for a model whose
+every decline can be explained coefficient by coefficient. The project's headline is
+therefore the packaged model's lift over B1, **+0.0205 ROC-AUC / +0.0246 PR-AUC**; XGBoost's
++0.029 is reported as the ceiling the features allow, not as the deployed result.
 
 On the real run the round-trip check passed bit-for-bit (max difference 0.0).
 
@@ -600,8 +603,9 @@ risk.
 
 The honest section. Each item names work that does better.
 
-**1. The headline lift is unverified.** +0.029 ROC-AUC over B1 is above every published
-lift (+0.012 to +0.018). It might be real — the test window and feature set differ — but
+**1. The headline lift is unverified.** The packaged logistic regression beats B1 by
++0.0205 ROC-AUC, just above the published range (+0.012 to +0.018); the best model,
+XGBoost, by +0.029, well above it. It might be real — the test window and feature set differ — but
 a lift above the published range is a red flag until a confidence interval (item 6) and
 the grade ablation (Phase 14) say otherwise.
 
@@ -614,9 +618,9 @@ snapshot — leaving 0.025% unresolved. That is strictly better than my approach
 filtering and writing a limitation. It is still the highest-value change available, and
 it would also unlock the 49 `sparse_pre2012_bureau` columns.
 
-**3. The packaged model is not the best model.** Notebook 04 ships logistic regression on
-a justification that came from the synthetic run. The choice between it and XGBoost
-(+0.0085 ROC-AUC) should be made explicitly on governance grounds, and written down.
+**3. The packaged model is not the best model — by choice.** Logistic regression was kept
+on governance grounds (Phase 15), giving up 0.0085 ROC-AUC to XGBoost. The decision is
+recorded; the cost is real and should be restated whenever the model is presented.
 
 **4. Two fairness flags are open.** Income band (disparate-impact ratio 0.534) and
 housing (0.674) fail the 0.8 convention, with FPR roughly doubled for the lowest income
@@ -627,7 +631,7 @@ real interest margin from the data and found the optimal threshold **doubled** (
 0.50) versus their placeholder. Every threshold-dependent number I report rests on a guess
 that is demonstrably load-bearing.
 
-**6. No confidence interval on the lift.** I report +0.0290 over B1 as a point estimate.
+**6. No confidence interval on the lift.** I report +0.0205 (packaged) and +0.0290 (best) over B1 as point estimates.
 Published work reports paired-bootstrap CIs. Without one I cannot claim the lift is
 distinguishable from zero.
 

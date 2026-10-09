@@ -569,8 +569,11 @@ phiên bản thư viện.
 synthetic, nơi các ensemble overfit. Trên dữ liệu thật chúng không overfit, và XGBoost dẫn
 trước 0.0085 ROC-AUC / 0.017 PR-AUC. Logistic regression vẫn bảo vệ được — khả năng audit đến
 từng hệ số là thứ một thông báo từ chối tín dụng cần — nhưng lý do giờ là quản trị, không phải
-khả năng tổng quát hoá, và nó tốn một phần hiệu năng đo được. Sự đánh đổi đó là một quyết định
-còn mở (Phase 16).
+khả năng tổng quát hoá, và nó tốn một phần hiệu năng đo được. **Quyết định: giữ logistic
+regression**, chấp nhận mất 0.0085 ROC-AUC để đổi lấy một mô hình mà mọi lần từ chối đều giải
+thích được đến từng hệ số. Vì vậy kết quả chính của project là mức lift của mô hình được đóng
+gói so với B1, **+0.0205 ROC-AUC / +0.0246 PR-AUC**; con số +0.029 của XGBoost được báo cáo
+như trần mà bộ feature cho phép, không phải kết quả triển khai.
 
 Trên lượt chạy thật, phép kiểm round-trip qua giống hệt từng bit (chênh lệch tối đa 0.0).
 
@@ -606,8 +609,9 @@ thì fit lại riêng lớp isotonic rẻ hơn và ít rủi ro hơn nhiều.
 
 Phần trung thực. Mỗi mục đều nêu đích danh công trình làm tốt hơn.
 
-**1. Mức lift chính chưa được kiểm chứng.** +0.029 ROC-AUC so với B1 cao hơn mọi mức lift đã
-công bố (+0.012 đến +0.018). Nó có thể là thật — cửa sổ test và bộ feature khác nhau — nhưng
+**1. Mức lift chính chưa được kiểm chứng.** Logistic regression được đóng gói vượt B1
++0.0205 ROC-AUC, nhỉnh hơn dải đã công bố (+0.012 đến +0.018); mô hình tốt nhất, XGBoost,
+vượt +0.029, cao hơn hẳn dải đó. Nó có thể là thật — cửa sổ test và bộ feature khác nhau — nhưng
 một mức lift vượt dải công bố là cờ đỏ cho đến khi khoảng tin cậy (mục 6) và phép ablation
 grade (Phase 14) nói khác.
 
@@ -620,9 +624,9 @@ chỉ còn 0.025% chưa ngã ngũ. Đó là thiết kế **tốt hơn hẳn** c�
 limitation. Đây vẫn là thay đổi có giá trị cao nhất hiện có, và nó còn mở khoá được 49 cột
 `sparse_pre2012_bureau`.
 
-**3. Mô hình được đóng gói không phải mô hình tốt nhất.** Notebook 04 đóng gói logistic
-regression dựa trên một lý do đến từ lượt chạy synthetic. Việc chọn giữa nó và XGBoost
-(+0.0085 ROC-AUC) cần được quyết định tường minh trên cơ sở quản trị, và ghi lại.
+**3. Mô hình được đóng gói không phải mô hình tốt nhất — do lựa chọn.** Logistic regression
+được giữ vì lý do quản trị (Phase 15), chấp nhận kém XGBoost 0.0085 ROC-AUC. Quyết định đã
+được ghi lại; cái giá là có thật và cần được nhắc lại mỗi khi trình bày mô hình.
 
 **4. Còn hai cờ đỏ fairness.** Nhóm thu nhập (tỷ số disparate impact 0.534) và nhà ở (0.674)
 không đạt quy ước 0.8, với FPR gần gấp đôi ở tứ phân vị thu nhập thấp nhất (Phase 13). Đã
@@ -633,8 +637,8 @@ sàng, chưa giải thích.
 với giá trị tạm của họ. Mọi con số phụ thuộc ngưỡng mà tôi báo cáo đều dựa trên một phỏng
 đoán mà bằng chứng cho thấy là có trọng lượng thật.
 
-**6. Không có khoảng tin cậy cho mức lift.** Tôi báo +0.0290 so với B1 dưới dạng ước lượng
-điểm. Công trình đã công bố báo cáo khoảng tin cậy paired-bootstrap. Không có nó, tôi không
+**6. Không có khoảng tin cậy cho mức lift.** Tôi báo +0.0205 (mô hình đóng gói) và +0.0290 (mô hình tốt nhất) so với B1
+dưới dạng ước lượng điểm. Công trình đã công bố báo cáo khoảng tin cậy paired-bootstrap. Không có nó, tôi không
 thể khẳng định mức lift khác 0 một cách có ý nghĩa thống kê.
 
 **7. Luật chống leakage được ghi chép, không được cưỡng chế.** Của tôi là một danh sách viết
