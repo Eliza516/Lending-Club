@@ -172,7 +172,10 @@ Rules:
 - The random stratified split (`random_state=42`, `test_size=0.2`) is computed **only**
   as a reference number, to report the OOT-vs-random gap. It is not the headline result.
 - OOT metrics should come out **lower** than random-split metrics. If they come out
-  higher, something is wrong — investigate, do not report it.
+  higher, something is wrong — investigate, do not report it. Exception, already
+  investigated: raw PR-AUC comes out higher OOT on the real file because test prevalence
+  is higher (22.4% vs 20.0%). Compare PR-AUC relative to prevalence (OOT 1.81× vs random
+  1.98×), which is lower as expected.
 - Assert `train.issue_d.max() < test.issue_d.min()` — a one-line guard against
   look-ahead.
 
@@ -239,8 +242,11 @@ a defensible report and an overclaiming one.
    real scorecard would see them.
 2. **Maturity / right-censoring bias.** Keeping only terminal statuses discards `Current`
    loans. 36- and 60-month loans issued near the end of the window have not matured, so
-   the post-cutoff test set is enriched with loans that resolved early —
-   disproportionately early charge-offs. Its default rate is not the true one.
+   the post-cutoff test set keeps only loans that resolved early (37.8% of post-cutoff
+   loans; 11.4% of 2018 issues). The bias changes sign with vintage age: 2016–2017
+   quarters are enriched with early charge-offs, while the newest quarters are enriched
+   with early *prepayments* (2018Q4 defaults at 2.4%). The test default rate is not the
+   true one, and the last two test quarters are not usable evidence of model decay.
 3. **Accepted-loans-only selection bias.** Training data covers applicants Lending Club
    already approved. This estimates default risk *conditional on acceptance*, not for the
    through-the-door population (the reject-inference problem).

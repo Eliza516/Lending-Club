@@ -43,10 +43,10 @@ con số phỏng đoán đúng tên của nó là cách duy nhất ngăn nó l�
 
 ## Phase 1 — Tiếp xúc đầu tiên: đọc dữ liệu bằng con mắt risk analyst
 
-File gốc có ~2.26 triệu dòng × 151 cột, giai đoạn 2007–2018 Q4. *(Kích thước và số dòng
-resolved nêu dưới đây là theo tài liệu của file Kaggle thật và được đối chiếu với các
-project khảo sát trong `docs/related_work.md` — project này **chưa** chạy trên file đó; xem
-Phase 16.)* Ba thứ tôi kiểm tra trước mọi thứ khác, theo đúng thứ tự này.
+File gốc có **2,260,701 dòng × 151 cột**, giải ngân từ 2007-06 đến 2018-12 (33 dòng có
+`issue_d` không parse được và bị bỏ). Mọi con số trong tài liệu này đến từ một lượt chạy
+đầy đủ notebook 02–04 trên chính file đó. Ba thứ tôi kiểm tra trước mọi thứ khác, theo đúng
+thứ tự này.
 
 **1. Một dòng là gì?** Một **đơn vay đã được giải ngân**. Không phải một người vay (có
 người vay nhiều lần, và không có khoá định danh ổn định để group). Không phải một đơn ứng
@@ -113,22 +113,35 @@ Chỉ giữ trạng thái cuối: `Fully Paid` → 0, `Charged Off`/`Default` �
 Đây là việc bắt buộc — không thể huấn luyện trên một kết quả chưa xảy ra. Nhưng nó **không
 miễn phí**, và tôi bắt mình phải viết hoá đơn ra:
 
-Một khoản vay 36 tháng giải ngân cuối 2018 **không thể** đã `Fully Paid` tại thời điểm chụp
-dữ liệu 2018 Q4. Nó chỉ có thể ngã ngũ nếu ngã ngũ **sớm** — mà ngã ngũ sớm thì thiên lệch
-về phía *charge-off*. Vậy nên việc lọc theo trạng thái cuối **âm thầm làm giàu giai đoạn
-gần đây bằng các ca default**.
+Một khoản vay 36 tháng giải ngân năm 2017 **không thể** đã đáo hạn tại thời điểm chụp dữ
+liệu 2018 Q4. Nó chỉ xuất hiện trong dữ liệu nếu đã ngã ngũ **sớm**, và tỷ lệ đã ngã ngũ sụt
+mạnh theo tuổi của vintage:
 
-**Hệ quả:** tỷ lệ default quan sát được ở giai đoạn cuối **không phải** tỷ lệ default thật.
-Tôi thấy điều này trực tiếp trên biểu đồ tỷ lệ default theo thời gian — nó bẻ lên ở rìa
-phải. Một phần là drift thật; một phần là hiện vật thống kê này. Tôi không thể tách bạch
-hai phần đó.
+| Năm giải ngân | 2013 | 2014 | 2015 | 2016 | 2017 | 2018 |
+|---|---|---|---|---|---|---|
+| Đã ngã ngũ (trạng thái cuối) | 100% | 94.7% | 89.2% | 67.5% | 38.2% | **11.4%** |
+
+Tôi từng nghĩ ngã ngũ sớm nghĩa là *charge-off* sớm, nên tỷ lệ default giai đoạn cuối sẽ bị
+thổi phồng. File thật cho thấy bias này **đổi dấu theo tuổi vintage**:
+
+- **Vintage tuổi trung bình (2016–2017)** bị làm giàu bằng các ca default — các quý test
+  2016Q2–Q3 default 25–26%, so với 18.4% ở train.
+- **Vintage mới nhất bị làm giàu bằng các ca *trả trước* sớm.** Một khoản vay có thể được
+  tất toán ngay trong vài tháng đầu, nhưng không thể bị charge-off trước khi trễ hạn khoảng
+  120+ ngày. Vì vậy 2018Q3 chỉ default 9.9% và 2018Q4 chỉ **2.4%**.
+
+**Hệ quả:** tỷ lệ default quan sát được ở giai đoạn test **không phải** tỷ lệ thật, theo cả
+hai chiều, và hai quý cuối không dùng làm bằng chứng được. Một phần biến động là drift thật;
+một phần là hiện vật thống kê này. Tôi không thể tách bạch hai phần đó.
 
 **Quyết định:** giữ bộ lọc, ghi nhận bias này thành một limitation có tên hẳn hoi, và
 **không bao giờ** trích tỷ lệ default của giai đoạn test như thể đó là tỷ lệ thật của nhóm.
 (Phase 16 quay lại chuyện này — đây là chỗ duy nhất một project đã công bố làm tốt hơn tôi.)
 
-Trên file thật, bước này còn lại ~1.3 triệu khoản vay đã ngã ngũ, tỷ lệ default ~20%, nhất
-quán giữa các project được khảo sát.
+Trên file thật, bước này còn lại **1,345,350 khoản vay đã ngã ngũ, tỷ lệ default 19.96%**
+(bỏ 915,318 dòng chưa ngã ngũ), nhất quán với các project được khảo sát. 2,749 dòng `Does not
+meet the credit policy` cũng bị bỏ, đó là lý do các vintage 2007–2010 có tỷ lệ ngã ngũ dưới
+100%.
 
 ---
 
@@ -151,9 +164,14 @@ Ba ghi chú thiết kế:
   dataset dùng chung một split. Mốc ngày không phụ thuộc RNG của thư viện nào, nên tái lập
   chính xác qua mọi cách cài đặt và mọi phiên bản. `train_test_split(random_state=42)` thì
   không.
-- **Tỷ lệ thu được là ~50/50, không phải 80/20.** Tăng trưởng khối lượng khiến 2016 rơi vào
-  giữa phần dữ liệu đã ngã ngũ. Tôi **không** dịch mốc cắt để có tỷ lệ đẹp hơn — chọn split
-  bằng cách nhìn vào kết quả nó tạo ra chính là chọn theo kết quả.
+- **Tỷ lệ thu được là 61/39 (826,604 train / 518,385 test), không phải 80/20.** Không ai
+  chọn tỷ lệ này — nó là hệ quả của mốc ngày. Trong file *gốc*, phía sau mốc cắt mới là phía
+  lớn hơn (1.37 triệu trên 2.26 triệu khoản, 61%), vì khối lượng giải ngân tăng mỗi năm.
+  Nhưng chỉ 37.8% khoản vay sau mốc cắt đã ngã ngũ tại thời điểm chụp dữ liệu, so với 93.1%
+  trước mốc cắt, nên bộ lọc trạng thái cuối thu nhỏ phía test nhiều hơn hẳn và đảo ngược tỷ
+  lệ. Bản thân tỷ lệ này là triệu chứng của right-censoring ở Phase 3. Tôi **không** dịch mốc
+  cắt để có tỷ lệ đẹp hơn — chọn split bằng cách nhìn vào kết quả nó tạo ra chính là chọn
+  theo kết quả, và mốc cắt được dùng chung với các nhóm khác trên dataset này.
 - **Tôi vẫn tính random split**, nhưng chỉ như một con số tham chiếu, để định lượng xem nó
   mua về bao nhiêu phần lạc quan ảo. Nó không bao giờ là kết quả chính.
 
@@ -170,7 +188,9 @@ tái lập đúng.
 > bước sau vẫn còn xoá dòng (trùng lặp, giá trị bất khả thi). Với file thật, số liệu trong
 > manifest sẽ lệch với dữ liệu xuất ra, và assertion ở notebook sau sẽ fail. Nó qua được
 > trên mẫu synthetic chỉ vì không có dòng nào bị xoá. Đã sửa: manifest được ghi **sau** khi
-> lọc xong toàn bộ dòng, tính trên tập dòng cuối cùng.
+> lọc xong toàn bộ dòng, tính trên tập dòng cuối cùng. Lượt chạy thật xác nhận bản sửa
+> này là cần thiết: 361 dòng bị xoá *sau* khi split (Phase 5), và phép kiểm manifest ở
+> notebook 03 vẫn qua.
 
 ---
 
@@ -198,17 +218,24 @@ công bố hàng nghìn khoản vay bất khả thi. Những vi phạm bất kh�
 có cách trung thực nào để bịa ra ngày mở hồ sơ tín dụng, và điền khuyết lên nó sẽ che mất
 một tín hiệu về chất lượng dữ liệu.
 
+Trên file thật, các con số nhỏ đến mức yên tâm: **361 dòng có `annual_inc` ≤ 0** (0.027%,
+bị xoá), 2 dòng `dti` âm, 1 dòng `open_acc` > `total_acc`, và không có dải FICO ngược hay hồ
+sơ tín dụng mở sau khoản vay nào. Phần parse là đúng.
+
 **(c) Ngoại lai — và cái bẫy.** Nước đi hiển nhiên là cắt ở phân vị 1%/99%. **Đó là
 leakage.** Phân vị là một **thống kê tính từ dữ liệu**; dùng nó trước khi split cho phép
 phân phối thu nhập của giai đoạn test định hình cách các dòng train bị biến đổi. Thay vào
 đó tôi cắt ở **biên miền cố định** (`annual_inc` ≤ 1.5 triệu USD, `dti` ≤ 60) — những giới
-hạn đến từ tính hợp lý nghiệp vụ, không phải từ chỗ một phân vị tình cờ rơi vào.
+hạn đến từ tính hợp lý nghiệp vụ, không phải từ chỗ một phân vị tình cờ rơi vào. Chúng hiếm
+khi tác động: 123 giá trị thu nhập, 1,716 giá trị DTI và 20 giá trị utilisation bị cắt trên
+tổng 1.34 triệu dòng.
 
 Cùng logic đó buộc `revol_util` phải chia bucket theo **cạnh cố định** (0/25/50/75/100) chứ
 không theo phân vị.
 
 **(d) Chuẩn hoá nhãn.** `home_ownership` chứa `ANY`, `NONE` và `OTHER` — ba nhãn cho cùng
-một nhóm "còn lại", là hiện vật của việc biểu mẫu thay đổi qua các năm. Để nguyên thì chúng
+một nhóm "còn lại", là hiện vật của việc biểu mẫu thay đổi qua các năm (286 `ANY`, 144 `OTHER`, 48 `NONE`
+trên file thật). Để nguyên thì chúng
 thành ba dummy thưa cùng nghĩa, và tệ hơn, **tần suất tương đối của chúng dịch chuyển theo
 thời gian**, nên encoder sẽ học một bộ từ vựng cho giai đoạn train khác với những gì giai
 đoạn test chứa. Đã gộp làm một.
@@ -234,10 +261,13 @@ của họ cách đây một khoảng thời gian trung bình" — tức là **n
 minh **trước** khi điền khuyết. Imputer sau đó điền giá trị; cột chỉ báo giữ lại sự kiện
 "đã từng trống", và mô hình có thể học xem sự vắng mặt đó nghĩa là gì.
 
-Tôi **kiểm chứng** thay vì giả định: trên dữ liệu train, nhóm có `mths_since_last_delinq`
-trống default ở mức **16.2%** so với **18.1%** ở nhóm có giá trị. Ô trống mang tính bảo vệ,
-đúng như lập luận nghiệp vụ dự đoán. Nếu hai tỷ lệ bằng nhau, tôi đã bỏ cột chỉ báo đi — một
-cột không thêm thông tin thì chỉ thêm phương sai.
+Tôi **kiểm chứng** thay vì giả định. Trên dữ liệu train thật, `mths_since_last_delinq` trống
+ở **51.3%** người nộp đơn, và nhóm này default ở mức **17.8%** so với **19.1%** ở nhóm có giá
+trị. Ô trống mang tính bảo vệ, đúng như lập luận nghiệp vụ dự đoán — dù hiệu ứng khiêm tốn.
+Ô trống của `emp_length` thì ngược chiều và mạnh hơn: **23.7%** default khi thiếu so với
+18.1% khi có, và `emp_length_was_missing` lọt vào top-15 permutation importance của mô hình
+(Phase 14). Nếu hai tỷ lệ bằng nhau, tôi đã bỏ cột chỉ báo đi — một cột không thêm thông tin
+thì chỉ thêm phương sai.
 
 **Sàng lọc cột.** Tôi bỏ các cột thiếu trên 60% số dòng — nhưng ngưỡng được đo **chỉ trên
 dòng train**, rồi áp cho cả hai bên. Tỷ lệ thiếu là một **thống kê**, và đo nó trên toàn bộ
@@ -291,8 +321,12 @@ của tôi vào một chiều thứ Sáu. Nó cũng có nghĩa cross-validation 
 bên trong từng fold thay vì một lần trên toàn bộ dữ liệu train.
 
 **Cách tôi kiểm chứng thay vì tin tưởng:** tôi so trung vị mà imputer học được với (a) trung
-vị của phần fit slice và (b) trung vị của toàn bộ frame. Chúng **khớp (a) và khác (b)** —
-chênh lệch lớn nhất 275 đơn vị ở một cột. Nếu tiền xử lý bị nhiễm bẩn, chúng đã khớp (b).
+vị của phần fit slice và (b) trung vị của toàn bộ frame. Chúng **khớp (a) và khác (b)**. Nếu
+tiền xử lý bị nhiễm bẩn, chúng đã khớp (b). (Phép audit này chạy trong lúc phát triển, không
+phải một cell trong notebook.) Trên file thật, trung vị chỉ-train và trung vị toàn-frame lệch
+nhau **1,000 USD ở `annual_inc`** và 452 USD ở `revol_bal` — nhỏ, và đó chính là điểm mấu
+chốt: nhiễm bẩn cỡ này không làm metric chính nào nhích thấy được, nên chỉ một bảo đảm về cấu
+trúc mới bắt được nó.
 
 ---
 
@@ -302,8 +336,11 @@ Trước mọi mô hình:
 
 | Baseline | ROC-AUC trên test | Cách đọc |
 |---|---|---|
-| B0 majority class | 0.5000, PR-AUC = prevalence | Cái sàn. Vượt nó không chứng minh được gì |
-| **B1 `sub_grade` (incumbent)** | **0.6164** | Vạch thật sự |
+| B0 majority class | 0.5000, PR-AUC 0.2242 (= prevalence của test) | Cái sàn. Vượt nó không chứng minh được gì |
+| **B1 `sub_grade` (incumbent)** | **0.6871**, PR-AUC 0.3648, KS 0.271 | Vạch thật sự |
+
+B1 ở mức 0.687 nằm đúng chỗ các benchmark incumbent đã công bố (0.679–0.680,
+`docs/related_work.md`). Grade của chính Lending Club vốn đã là một mô hình tốt.
 
 B1 **không cần fit gì cả** — `sub_grade` vốn đã là một thứ hạng rủi ro có thứ tự, và mọi
 metric dựa trên xếp hạng (AUC, PR-AUC, KS) đều dùng trực tiếp được.
@@ -323,37 +360,51 @@ Cross-validation dùng `TimeSeriesSplit` trên các dòng train đã sắp theo 
 bao giờ** dùng fold xáo trộn, vì điều đó sẽ tái lập đúng cái look-ahead mà split OOT đã loại
 bỏ.
 
-Tôi yêu cầu lấy cả điểm trên train-fold bên cạnh điểm validation, và chính bảng đó cho ra
-phát hiện hữu ích nhất của project:
+Tôi yêu cầu lấy cả điểm trên train-fold bên cạnh điểm validation, vì khoảng chênh đó chính
+là phép kiểm overfitting:
 
-| Mô hình | Train AUC | CV AUC | Gap |
+| Mô hình | Train AUC | CV AUC (± std) | Gap |
 |---|---|---|---|
-| Logistic Regression | 0.675 | 0.632 | **+0.044** |
-| Random Forest | 0.785 | 0.644 | +0.140 |
-| HistGradientBoosting | 0.938 | 0.606 | **+0.332** |
-| XGBoost | 0.992 | 0.596 | **+0.396** |
+| Logistic Regression | 0.7012 | 0.7194 ± 0.017 | −0.018 |
+| Random Forest | 0.7352 | 0.7216 ± 0.016 | +0.014 |
+| HistGradientBoosting | 0.7271 | 0.7247 ± 0.018 | +0.002 |
+| XGBoost | 0.7409 | 0.7252 ± 0.019 | +0.016 |
 
-Các ensemble đang **học thuộc lòng**. XGBoost khớp gần như hoàn hảo trên train-fold và tổng
-quát hoá tệ nhất. Không có cột này thì thứ hạng cuối trông như ngẫu nhiên; có nó thì kết quả
-trở nên hiển nhiên và giải thích được.
+**Không mô hình nào học thuộc lòng.** Với ~830 nghìn dòng train, mọi gap đều dưới hai điểm.
+(Bản smoke test synthetic từng cho XGBoost gap +0.40 — trên 40 nghìn dòng sinh ra. Đó là đặc
+tính của dữ liệu thay thế, không phải của bài toán, và là ví dụ tốt cho lý do kết quả
+synthetic không bao giờ được trích dẫn.) Gap *âm* của logistic regression (validation cao hơn
+train) tự nó không phải lỗi. Trong CV cửa sổ mở rộng, điểm train bao gồm cả các vintage nhỏ,
+sớm 2007–2012, còn mọi fold validation đều đến từ giai đoạn sau. Cách đọc khả dĩ nhất là các
+vintage sau dễ xếp hạng hơn với một mô hình tuyến tính; tôi chưa kiểm chứng điều đó.
 
 **Tuning để sau cùng**, có chủ ý — sau khi đã chốt so sánh, chấm bằng PR-AUC với
 `TimeSeriesSplit`. Tuning trước khi so sánh là đo công sức tìm kiếm, không phải đo chất lượng
-mô hình.
+mô hình. Trên dữ liệu thật nó **không mua thêm được gì**: XGBoost đã tune 0.7162 so với mặc
+định 0.7161 trên test. Bộ tham số mặc định đã chạm trần mà các feature cho phép.
 
-**Kết quả test cuối (mẫu synthetic — xem cảnh báo bên dưới):**
+**Kết quả test out-of-time cuối cùng** (train 2007-06 → 2015-12, test 2016-01 → 2018-12):
 
-| Mô hình | ROC-AUC | PR-AUC | so với B1 |
-|---|---|---|---|
-| Logistic Regression | 0.6421 | 0.2920 | **+0.0257** |
-| Random Forest | 0.6387 | 0.2834 | +0.0223 |
-| B1 `sub_grade` | 0.6164 | 0.2692 | — |
-| HistGradientBoosting | 0.6279 | 0.2680 | +0.0115 |
-| XGBoost | 0.6037 | 0.2494 | **−0.0127** |
+| Mô hình | ROC-AUC | PR-AUC | KS | Brier | ROC-AUC so với B1 | PR-AUC so với B1 |
+|---|---|---|---|---|---|---|
+| **XGBoost** | **0.7161** | **0.4068** | 0.314 | 0.1574 | **+0.0290** | **+0.0420** |
+| XGBoost (tuned) | 0.7162 | 0.4067 | 0.313 | 0.1575 | +0.0291 | +0.0419 |
+| HistGradientBoosting | 0.7148 | 0.4041 | 0.311 | 0.1574 | +0.0277 | +0.0393 |
+| Logistic Regression | 0.7076 | 0.3895 | 0.301 | 0.1588 | +0.0205 | +0.0246 |
+| Random Forest | 0.7065 | 0.3925 | 0.298 | 0.1586 | +0.0194 | +0.0277 |
+| B1 `sub_grade` | 0.6871 | 0.3648 | 0.271 | 0.1741 | — | — |
+| B0 majority | 0.5000 | 0.2242 | 0 | 0.1755 | −0.187 | −0.141 |
 
-Hai ensemble nằm **dưới incumbent**. Tôi báo cáo điều đó thay vì tune cho đến khi nó biến
-mất. Việc mô hình dễ diễn giải thắng là kết quả trung thực ở đây, và cũng là kết quả có thể
-đem ra trình bày trước cơ quan quản lý.
+Ba cách đọc:
+
+- **Dải hợp lý vẫn đứng vững.** 0.7161 nằm trong 0.68–0.72 và trong dải công bố 0.678–0.735.
+  Không có báo động leakage.
+- **Mọi mô hình đều vượt incumbent**, và các mô hình boosting vượt nhiều nhất. Mô hình tốt
+  nhất chỉ hơn logistic regression 0.0085 ROC-AUC (0.017 PR-AUC); độ trải giữa cả bốn mô hình
+  (0.0096) chỉ bằng một phần ba mức lift so với B1.
+- **Mức lift lớn hơn các con số đã công bố** (+0.029 so với +0.012 đến +0.018). Một phần là
+  do cửa sổ test khác, nhưng một mức lift vượt dải công bố là thứ cần kiểm chứng chứ không
+  phải để ăn mừng: nó chưa có khoảng tin cậy (Phase 16).
 
 ---
 
@@ -371,10 +422,16 @@ thể là **những tháng muộn nhất trước mốc cắt**, không phải m
 thời gian được giữ xuyên suốt: fit trên giai đoạn sớm, calibrate trên giai đoạn muộn hơn,
 test trên giai đoạn sau nữa.
 
-Đường calibration xác nhận: các điểm chưa calibrate nằm **dưới** đường chéo rõ rệt (dự đoán
-≫ thực tế); sau isotonic chúng nằm trên đường chéo, và Brier score cải thiện từ **0.2315
-xuống 0.1477**. ROC-AUC **không đổi** — calibration là phép đơn điệu nên không thể thay đổi
-thứ hạng. Chính tính bất biến đó là lý do AUC một mình là không đủ.
+Đường calibration xác nhận. Với XGBoost, các điểm chưa calibrate nằm **dưới** đường chéo rõ
+rệt (dự đoán ≫ thực tế). Sau isotonic calibration, Brier score cải thiện từ **0.2050 xuống
+0.1574**. ROC-AUC **không đổi** — calibration là phép đơn điệu nên không thể thay đổi thứ
+hạng. Chính tính bất biến đó là lý do AUC một mình là không đủ.
+
+Lượt chạy thật thêm một chi tiết mà bản synthetic không thể cho thấy. Trên giai đoạn test,
+đường đã calibrate nằm **hơi cao hơn** đường chéo: mô hình giờ lại *đánh giá thấp* default
+vài điểm. Lát calibration (2015-08 đến 2015-12) học mức của giai đoạn train, còn giai đoạn
+test default ở 22.4% so với 18.4% ở train (một phần thật, một phần do censoring ở Phase 3).
+Đó là lý lẽ cho ngưỡng kích hoạt recalibration rẻ tiền ở Phase 15.
 
 ---
 
@@ -387,8 +444,11 @@ accuracy xuất hiện trong bảng của tôi **chỉ để bị bác bỏ**.)
 
 Ba quy tắc ứng viên — tối ưu F1, Youden's J, và dựa trên chi phí. Chỉ quy tắc thứ ba mã hoá
 đúng bài toán thật: một ca default bị bỏ sót mất phần gốc chưa thu hồi; một khách tốt bị từ
-chối mất phần biên lãi. Với `FN:FP = 4:1`, ngưỡng rơi vào khoảng **0.195**, thấp hơn 0.5 rất
-nhiều, và mô hình **đúng đắn** đánh đổi precision để lấy recall.
+chối mất phần biên lãi. Với `FN:FP = 4:1`, ngưỡng rơi vào **0.195–0.200** cho mọi mô hình, thấp hơn
+0.5 rất nhiều, và mô hình **đúng đắn** đánh đổi precision để lấy recall. Trên tập test,
+XGBoost ở ngưỡng 0.200 bắt được **61.9%** số ca default với precision 36.5%, từ chối khoảng
+38% hồ sơ, với chi phí kỳ vọng 0.146 mỗi khoản vay so với 0.153 của B1 và 0.224 nếu duyệt
+tất cả.
 
 **Chọn trên lát calibration và áp nguyên vẹn sang test.** Tinh chỉnh ngưỡng dựa trên điểm
 của tập test là cùng một họ leakage với việc fit scaler trên nó.
@@ -409,6 +469,15 @@ theo thời gian đặt ra câu hỏi mà con số tổng hợp không trả l�
 cuối cửa sổ test, hay chỉ tốt ở đầu?* FNR tăng dần theo từng quý là dạng drift đắt đỏ. Chính
 độ dốc đó ấn định nhịp retrain ở Phase 15 — **suy ra chứ không phỏng đoán**.
 
+Các lát cắt thật cho thấy (XGBoost, tập test):
+
+| Lát cắt | Phát hiện |
+|---|---|
+| **Trong từng grade** | ROC-AUC chỉ **0.61–0.67** bên trong mỗi grade. Phần lớn sức xếp hạng đến từ việc tách các grade, không phải sắp thứ tự hồ sơ trong cùng một grade |
+| **Kỳ hạn** | Khoản 60 tháng default 33.4% so với 19.2%; mô hình từ chối 81% trong số đó |
+| **Dải FICO** | AUC tăng từ 0.68 (<680) lên 0.77 (750+) — mô hình yếu nhất đúng ở chỗ rủi ro cao nhất |
+| **Quý giải ngân** | 0.742 ở 2016Q1, rồi phẳng 0.69–0.72 đến 2018Q2; **2018Q4 sụp xuống 0.551** trên 5,018 khoản với tỷ lệ default 2.4% — hiện vật censoring ở Phase 3, không phải mô hình hỏng |
+
 **Công bằng (fairness).** Quyết định cho vay ảnh hưởng tới con người, nên tôi đo tỷ lệ từ
 chối, FPR và FNR theo vùng của Mỹ, nhóm thu nhập và tình trạng nhà ở, kèm tỷ số disparate
 impact so với ngưỡng quy ước 0.8.
@@ -419,6 +488,21 @@ thực tế cao hơn tương ứng thì đang được đối xử nhất quán.
 không phải bị rủi ro của bản thân họ. Chỉ nhìn tỷ lệ từ chối thì không phân biệt được hai
 trường hợp.
 
+Kết quả thật (XGBoost tại ngưỡng chi phí):
+
+| Nhóm | Tỷ số disparate impact | Kết luận | Cách đọc |
+|---|---|---|---|
+| Vùng của Mỹ | 0.850 | đạt | Tỷ lệ từ chối 35–41%, bám theo tỷ lệ default 21–24% |
+| **Nhóm thu nhập** | **0.534** | **cờ đỏ** | Tứ phân vị thấp nhất bị từ chối 49.2% so với 26.2% ở nhóm cao nhất. Tỷ lệ default chênh 1.43× (26.4% so với 18.4%), tỷ lệ từ chối chênh 1.88×, và **FPR gấp đôi** (0.418 so với 0.209) |
+| **Nhà ở** | **0.674** | **cờ đỏ** | Người thuê nhà bị từ chối 46.5% so với 31.4% ở người có thế chấp; default 27.2% so với 18.7%; FPR 0.383 so với 0.259 |
+
+Cả hai cờ đỏ đều **một phần nhất quán với rủi ro, một phần thì không**. Người thu nhập thấp
+và người thuê nhà thực sự default nhiều hơn, nhưng khoảng chênh tỷ lệ từ chối rộng hơn khoảng
+chênh tỷ lệ default, và FPR gấp đôi nghĩa là nhiều hồ sơ thu nhập thấp nhưng đáng tin cậy bị
+từ chối nhầm hơn. Đó chính xác là mẫu hình mà quy tắc diễn giải ở trên được viết ra để bắt.
+Đây là một phát hiện cần điều tra (ví dụ, liệu `annual_inc` và `loan_to_income` có đang gánh
+trọng số nhiều hơn lượng thông tin rủi ro của chúng), chưa phải phán quyết.
+
 **Cảnh báo tôi luôn gắn kèm:** dataset này **không chứa thuộc tính được bảo vệ** nào. Vùng,
 thu nhập, nhà ở đều là proxy. Một chênh lệch tìm thấy ở đây là có thật và đáng điều tra;
 nhưng **không có** chênh lệch ở đây **không** chứng nhận mô hình công bằng trên những thuộc
@@ -426,8 +510,15 @@ tính thực sự có ý nghĩa pháp lý. Đây là một phép sàng, không p
 không project nào trong số đã khảo sát làm được đến mức này.
 
 **Phép đo mức lạc quan ảo.** Tôi chạy lại toàn bộ một lần với random split. Mọi mô hình đều
-đạt điểm cao hơn. Khoảng chênh đó chính là độ lớn của ảo tưởng trong các bảng xếp hạng công
-bố cho dataset này, và là lý do giao thức split chung không phải thủ tục hành chính.
+đạt ROC-AUC cao hơn, thêm **+0.008 đến +0.012** — gần như đúng một điểm mà Xia et al. đo được
+giữa out-of-sample và out-of-time trên dataset này. Khoảng chênh đó chính là độ lớn của ảo
+tưởng trong các bảng xếp hạng công bố, và là lý do giao thức split chung không phải thủ tục
+hành chính.
+
+PR-AUC lại đi theo chiều *ngược lại* (OOT 0.4068 so với random 0.3962 cho XGBoost), điều mà
+`CLAUDE.md` yêu cầu phải điều tra thay vì báo cáo. Nguyên nhân là prevalence, không phải
+leakage: sàn của PR-AUC là tỷ lệ lớp dương, 22.4% trên tập test OOT và 20.0% trên tập random.
+Tính tương đối so với sàn, OOT thấp hơn đúng như kỳ vọng — 1.81× prevalence so với 1.98×.
 
 ---
 
@@ -437,8 +528,12 @@ Permutation importance (mô hình dựa vào cái gì), hệ số logistic (hư�
 (quy kết cho từng hồ sơ — đúng câu hỏi mà thông báo từ chối tín dụng phải trả lời theo luật
 ở nhiều nơi), partial dependence (hình dạng của từng hiệu ứng và nó có đơn điệu không).
 
-`int_rate` và `sub_grade` chiếm ưu thế. Cách đọc của tôi trong notebook là mô hình đang
-**học lại phần lớn chính hệ thống thẩm định của Lending Club** chứ không thêm thông tin mới.
+Trên dữ liệu thật, **`sub_grade_ordinal` áp đảo** permutation importance: xáo trộn nó làm mất
+0.037 ROC-AUC, gấp ba cột kế tiếp (`term`, 0.012), sau đó là `int_rate`, `revol_bal` và
+`grade_ordinal`. Hệ số logistic cũng đặt `sub_grade_ordinal` lên đầu, rồi đến `purpose =
+small_business`. Một số dummy `addr_state` cũng mang hệ số đáng kể, điều này liên quan tới
+phép sàng theo vùng ở Phase 13. Cách đọc của tôi trong notebook là mô hình đang **học lại
+phần lớn chính hệ thống thẩm định của Lending Club** chứ không thêm thông tin mới.
 
 **Nhưng tôi phải nói rõ rằng khẳng định này chưa được kiểm chứng, và phép thử công bố duy
 nhất lại chỉ theo hướng ngược lại.** Một project được khảo sát đã bỏ hẳn `grade`/`sub_grade`
@@ -469,6 +564,16 @@ kiểm bắt lỗi transformer không pickle được hay lệch phiên bản **
 Một model card ghi lại cửa sổ huấn luyện, danh sách feature, các metric, hash của split và
 phiên bản thư viện.
 
+**Đóng gói mô hình nào.** Notebook 04 đóng gói **logistic regression + isotonic calibration**
+(OOT ROC-AUC 0.7076, PR-AUC 0.3895). Lựa chọn đó ban đầu được biện minh bằng lượt chạy
+synthetic, nơi các ensemble overfit. Trên dữ liệu thật chúng không overfit, và XGBoost dẫn
+trước 0.0085 ROC-AUC / 0.017 PR-AUC. Logistic regression vẫn bảo vệ được — khả năng audit đến
+từng hệ số là thứ một thông báo từ chối tín dụng cần — nhưng lý do giờ là quản trị, không phải
+khả năng tổng quát hoá, và nó tốn một phần hiệu năng đo được. Sự đánh đổi đó là một quyết định
+còn mở (Phase 16).
+
+Trên lượt chạy thật, phép kiểm round-trip qua giống hệt từng bit (chênh lệch tối đa 0.0).
+
 **Giám sát.** Hai kiểu hỏng khác nhau cần hai dụng cụ khác nhau:
 
 - **Data drift** — đầu vào dịch chuyển. Đo bằng **PSI** cho từng feature so với baseline
@@ -483,41 +588,66 @@ Chính sách retrain gắn các ngưỡng số với hành động cụ thể, k
 nêu: **recalibration không phải retraining**. Nếu xếp hạng vẫn đúng mà chỉ xác suất lệch,
 thì fit lại riêng lớp isotonic rẻ hơn và ít rủi ro hơn nhiều.
 
+**Những gì lượt chạy thật đo được:**
+
+- **PSI điểm số 0.0064** — ổn định. Mọi PSI feature đều dưới 0.1; lớn nhất là `revol_util`
+  (0.098) và `int_rate` (0.083), cả hai sát ngưỡng "điều tra".
+- **Suy giảm hiệu năng.** Notebook fit được độ dốc −0.008 ROC-AUC mỗi quý trên cửa sổ test và
+  in ra "refit nhiều hơn một lần mỗi năm". **Độ dốc đó là hiện vật.** Nó bị kéo bởi hai quý
+  chưa đáo hạn (2018Q3 0.683, 2018Q4 0.531 trên 5,018 khoản). Bỏ hai quý đó ra, như chính
+  phần chữ của notebook khuyên, và độ dốc chỉ còn **−0.001 mỗi quý** (khoảng −0.004 mỗi năm).
+  Cách đọc trung thực: đầu vào ổn định, xếp hạng giữ vững đến 2018Q2, còn mức xác suất đang
+  trôi (Phase 11) — đây là trường hợp cần **recalibration** hơn là retraining. Code notebook
+  hiện chưa tự động loại các quý đó.
+
 ---
 
 ## Phase 16 — Những gì vẫn còn sai ở đây
 
 Phần trung thực. Mỗi mục đều nêu đích danh công trình làm tốt hơn.
 
-**1. Kết quả là synthetic.** Các con số phía trên đến từ một mẫu sinh ra thay thế, vì file
-Kaggle 1.6GB không có trong môi trường. Chúng chỉ smoke-test đường ống và **không phải phát
-hiện**. Mọi thứ khác ở đây đều bị chặn bởi việc chạy trên file thật.
+**1. Mức lift chính chưa được kiểm chứng.** +0.029 ROC-AUC so với B1 cao hơn mọi mức lift đã
+công bố (+0.012 đến +0.018). Nó có thể là thật — cửa sổ test và bộ feature khác nhau — nhưng
+một mức lift vượt dải công bố là cờ đỏ cho đến khi khoảng tin cậy (mục 6) và phép ablation
+grade (Phase 14) nói khác.
 
-**2. Tôi ghi chú right-censoring; người khác đã giải quyết nó.** Một project được khảo sát
-giới hạn vào các khoản vay 36 tháng giải ngân 2012–2015, toàn bộ đã đáo hạn tính đến bản
-chụp 2018 Q4 — chỉ còn 0.025% chưa ngã ngũ. Đó là thiết kế **tốt hơn hẳn** cách tôi làm là
-lọc rồi viết limitation. Đây là thay đổi có giá trị cao nhất hiện có.
+**2. Tôi ghi chú right-censoring; người khác đã giải quyết nó.** Lượt chạy thật cho thấy thiệt
+hại cụ thể: chỉ 37.8% khoản vay sau mốc cắt đã ngã ngũ, tỷ lệ split đảo thành 61/39, các quý
+test 2016–2017 bị làm giàu bằng default, các quý 2018 bị làm giàu bằng trả trước, và độ dốc
+suy giảm giả ở Phase 15 đến từ chính các quý cuối đó. Một project được khảo sát giới hạn vào
+các khoản vay 36 tháng giải ngân 2012–2015, toàn bộ đã đáo hạn tính đến bản chụp 2018 Q4 —
+chỉ còn 0.025% chưa ngã ngũ. Đó là thiết kế **tốt hơn hẳn** cách tôi làm là lọc rồi viết
+limitation. Đây vẫn là thay đổi có giá trị cao nhất hiện có, và nó còn mở khoá được 49 cột
+`sparse_pre2012_bureau`.
 
-**3. Tỷ lệ chi phí của tôi là bịa.** `4:1` là giá trị tạm. Một project được khảo sát đã
+**3. Mô hình được đóng gói không phải mô hình tốt nhất.** Notebook 04 đóng gói logistic
+regression dựa trên một lý do đến từ lượt chạy synthetic. Việc chọn giữa nó và XGBoost
+(+0.0085 ROC-AUC) cần được quyết định tường minh trên cơ sở quản trị, và ghi lại.
+
+**4. Còn hai cờ đỏ fairness.** Nhóm thu nhập (tỷ số disparate impact 0.534) và nhà ở (0.674)
+không đạt quy ước 0.8, với FPR gần gấp đôi ở tứ phân vị thu nhập thấp nhất (Phase 13). Đã
+sàng, chưa giải thích.
+
+**5. Tỷ lệ chi phí của tôi là bịa.** `4:1` là giá trị tạm. Một project được khảo sát đã
 **suy ra** biên lãi thực từ dữ liệu và thấy ngưỡng tối ưu **tăng gấp đôi** (0.25 → 0.50) so
 với giá trị tạm của họ. Mọi con số phụ thuộc ngưỡng mà tôi báo cáo đều dựa trên một phỏng
 đoán mà bằng chứng cho thấy là có trọng lượng thật.
 
-**4. Không có khoảng tin cậy cho mức lift.** Tôi báo +0.0257 so với B1 dưới dạng ước lượng
+**6. Không có khoảng tin cậy cho mức lift.** Tôi báo +0.0290 so với B1 dưới dạng ước lượng
 điểm. Công trình đã công bố báo cáo khoảng tin cậy paired-bootstrap. Không có nó, tôi không
 thể khẳng định mức lift khác 0 một cách có ý nghĩa thống kê.
 
-**5. Luật chống leakage được ghi chép, không được cưỡng chế.** Của tôi là một danh sách viết
+**7. Luật chống leakage được ghi chép, không được cưỡng chế.** Của tôi là một danh sách viết
 ra cộng với audit thủ công. Hai project được khảo sát **làm fail hẳn lượt huấn luyện** một
 cách tự động nếu một cột bị cấm xuất hiện. Cách của họ sống sót qua một lần chỉnh sửa bất
 cẩn trong tương lai; cách của tôi phụ thuộc vào việc người sau có đọc tài liệu hay không.
 
-**6. `issue_d` là proxy cho ngày nộp đơn.** Nó là ngày **giải ngân**; dataset không bao giờ
+**8. `issue_d` là proxy cho ngày nộp đơn.** Nó là ngày **giải ngân**; dataset không bao giờ
 ghi lại thời điểm ra quyết định. Mọi độ trễ từ nộp đơn đến giải ngân đều vô hình, nên các
 feature của tôi được gán thời điểm muộn hơn một chút so với những gì một scorecard thật nhìn
 thấy. Đây là thực hành chuẩn trên dataset này, nhưng phải **nói ra**, không được mặc định.
 
-**7. Chỉ có hồ sơ được duyệt.** Mô hình ước lượng rủi ro **có điều kiện trên việc được
+**9. Chỉ có hồ sơ được duyệt.** Mô hình ước lượng rủi ro **có điều kiện trên việc được
 duyệt**, không phải cho toàn bộ dân số nộp đơn. Đây là bài toán reject inference và không
 thể khắc phục bằng cách join file hồ sơ bị từ chối, vì file đó về bản chất không có kết quả.
 
@@ -532,7 +662,7 @@ thể khắc phục bằng cách join file hồ sơ bị từ chối, vì file �
 | 3 | Chỉ giữ trạng thái cuối | Coi `Current` là đã trả xong | Sẽ gán nhãn "thành công" cho khoản vay chưa ngã ngũ |
 | 4 | Split out-of-time | Random stratified | Triển khai thật là chấm điểm hồ sơ tương lai |
 | 5 | Mốc ngày, không phải seed | `random_state=42` | Tái lập được qua mọi cách cài đặt |
-| 6 | Giữ tỷ lệ ~50/50 | Dịch mốc cắt để đạt 80/20 | Chọn split theo kết quả nó tạo ra |
+| 6 | Giữ tỷ lệ 61/39 mà mốc ngày tạo ra | Dịch mốc cắt để đạt 80/20 | Chọn split theo kết quả nó tạo ra |
 | 7 | Cắt theo biên miền cố định | Phân vị 1%/99% | Phân vị là thứ học từ dữ liệu |
 | 8 | Cột chỉ báo thiếu | `fillna(median)` | Ô trống là thông tin mang tính bảo vệ |
 | 9 | Sàng cột chỉ trên train | Sàng trên toàn frame | Tỷ lệ thiếu là một thống kê |
@@ -542,7 +672,7 @@ thể khắc phục bằng cách join file hồ sơ bị từ chối, vì file �
 | 13 | `TimeSeriesSplit` cho CV | `StratifiedKFold` | Fold xáo trộn khôi phục lại look-ahead |
 | 14 | Isotonic calibration trên tháng train muộn | Không calibrate / lát ngẫu nhiên | Xác suất chính là sản phẩm |
 | 15 | Ngưỡng dựa trên chi phí | 0.5 | 0.5 vô nghĩa ở prevalence 20% |
-| 16 | Báo cáo việc ensemble thua B1 | Tune đến khi chúng thắng | Đó **là** kết quả |
+| 16 | Lấy mức lift so với B1 làm kết quả chính, và gắn cờ vì nó vượt dải đã công bố | Lấy AUC tuyệt đối làm kết quả chính | Incumbent là vạch chuẩn; một chiến thắng lớn bất thường là khẳng định cần kiểm chứng |
 | 17 | Lưu toàn bộ pipeline | Chỉ lưu estimator | Production không được cài lại tiền xử lý |
 | 18 | PSI điểm số làm giám sát chính | Chờ kết quả thực tế | Nhãn đến sau nhiều năm |
 
@@ -553,8 +683,10 @@ thể khắc phục bằng cách join file hồ sơ bị từ chối, vì file �
 Những quyết định ảnh hưởng nhiều nhất tới con số cuối cùng **không phải là thuật toán**.
 Theo thứ tự mức ảnh hưởng: split có tôn trọng thời gian không, tiền xử lý có tôn trọng split
 không, ngưỡng quyết định đặt ở đâu, và mô hình có được so với chính quy tắc mà nó định thay
-thế hay không. Lựa chọn mô hình xếp thứ năm, cách xa phía sau — và **mô hình đơn giản nhất
-đã thắng**.
+thế hay không. Lựa chọn mô hình xếp thứ năm, cách xa phía sau: trên file thật, cả bốn mô hình
+nằm trong khoảng 0.0096 ROC-AUC của nhau, bằng một phần ba mức lift 0.029 so với incumbent.
+Boosting thắng, sát nút — và việc khoảng chênh đó có đáng đổi lấy khả năng diễn giải hay không
+là quyết định quản trị, không phải quyết định mô hình hoá.
 
 **Tham chiếu:** so sánh benchmark kèm trích dẫn ở `docs/related_work.md`; quy tắc và quy ước
 ở `CLAUDE.md`; phần cài đặt ở `notebooks/01`–`04`.
