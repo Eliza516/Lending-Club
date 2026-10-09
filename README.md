@@ -108,6 +108,7 @@ artifacts/model_card.json       Provenance, metrics, versions, limitations (git-
 CLAUDE.md                       Conventions, leakage rules, split protocol
 docs/related_work.md            Benchmark comparison vs published projects
 docs/methodology_walkthrough.md How and why each modelling decision was made
+docs/methodology_walkthrough.vi.md  Vietnamese translation (internal reading)
 ```
 
 ## Train / test split protocol
