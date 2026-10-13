@@ -1,13 +1,9 @@
 # Python >= 3.10
 pandas>=2.0
 numpy>=1.24
-scikit-learn>=1.3
+scikit-learn>=1.4
 matplotlib>=3.7
 seaborn>=0.12
 pyarrow>=12.0          # Parquet hand-off between notebooks
-joblib>=1.3            # model packaging (notebook 04)
+joblib>=1.3            # saving the model (notebook 04)
 jupyter>=1.0
-
-# Optional. Both are guarded by try/except -- the notebooks run end to end without them.
-xgboost>=2.0           # one of the four models (notebook 03 step 8)
-shap>=0.44             # per-prediction attribution (notebook 03 step 10.2)
