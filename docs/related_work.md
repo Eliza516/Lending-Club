@@ -8,20 +8,37 @@ Every number below is quoted from the cited source. Sources were retrieved in Se
 
 ---
 
-## 1. The headline caveat, stated first
+## 1. Our results on the real file
 
-**This project's current numbers come from a synthetic sample, not the real Kaggle file.**
-They smoke-test the pipeline. They are **not comparable** to any number in this document,
-and must not be quoted as results.
+Run on the full Kaggle file (`accepted_2007_to_2018Q4.csv.gz`, 2,260,701 rows → 1,344,989
+resolved loans after cleaning). **Out-of-time split**: train issued 2007-06 → 2015-12
+(826,604 loans), test 2016-01 → 2018-12 (518,385 loans).
 
-| | ROC-AUC | Status |
-|---|---|---|
-| Our Logistic Regression (synthetic) | 0.6421 | **Not a result** — synthetic data |
-| Our B1 `sub_grade` incumbent (synthetic) | 0.6164 | **Not a result** — synthetic data |
-| Our lift over incumbent (synthetic) | +0.0257 | **Not a result** — synthetic data |
+| | ROC-AUC | PR-AUC | KS | Gini |
+|---|---|---|---|---|
+| Our best model — XGBoost (calibrated; not deployed) | 0.7161 | 0.4068 | 0.314 | 0.432 |
+| **Our Logistic Regression (calibrated; the packaged model)** | 0.7076 | 0.3895 | 0.301 | 0.415 |
+| Our B1 `sub_grade` incumbent | 0.6871 | 0.3648 | 0.271 | 0.374 |
+| **Our lift over incumbent — Logistic Regression (packaged, headline)** | **+0.0205** | +0.0246 | | |
+| Our lift over incumbent — XGBoost (best, not deployed) | +0.0290 | +0.0420 | | |
 
-So the honest claim right now is **methodological, not numerical**. Section 4 lists where
-we are genuinely ahead; section 5 lists where we are genuinely behind. Both matter.
+How this sits against the published work in §2:
+
+- **Inside the band.** 0.7161 is inside both our 0.68–0.72 band and the published
+  0.678–0.735 range. It lands almost exactly on Arturo-GA's OOT LightGBM (0.7151, Gini
+  0.4302, KS 0.3137 vs our Gini 0.432, KS 0.314).
+- **Our incumbent matches theirs.** B1 at 0.687 is close to vaibhavkev's LC sub-grade
+  (0.679) and Tanish-Srivastava's LC grade (0.680).
+- **Our lift is at or above theirs** — +0.0205 for the packaged logistic regression and
+  +0.029 for XGBoost, vs +0.018 and +0.012. We package logistic regression on governance
+  grounds, so +0.0205 is the headline. Treat this as a claim
+  to verify, not a win: we have no confidence interval (§5.3) and have not run the grade
+  ablation (§5.6). Different test windows (2016–2018 vs 2015) may account for part of it.
+- **The OOT-vs-random gap reproduces.** Under the reference random split our ROC-AUC rises
+  by +0.008 to +0.012 for every model, matching Xia et al.'s one-point gap.
+
+Section 4 lists where we are genuinely ahead; section 5 lists where we are genuinely
+behind. Both matter.
 
 ---
 
@@ -30,7 +47,7 @@ we are genuinely ahead; section 5 lists where we are genuinely behind. Both matt
 | Project | Split | Best model AUC | Incumbent baseline | Lift |
 |---|---|---|---|---|
 | **vaibhavkev/credit-risk** | **OOT**: train Jan 2012–Jun 2014, val Jul–Dec 2014, test 2015 | XGBoost (monotone) **0.696** (Gini 0.392, KS 0.284); LogReg 0.683 | LC sub-grade **0.679**, LC rate 0.678 | **+0.018**, paired-bootstrap 95 % CI [+0.016, +0.020] |
-| **Arturo-GA/lendingclub-default-risk** | **OOT**: 70 % oldest train / 15 % val / 15 % newest test | LightGBM **0.7151** (Gini 0.4302, KS 0.3137); LogReg 0.7041; WoE scorecard 0.704 | not reported | — |
+| **Arturo-GA/lendingclub-default-risk** | **OOT**: 70 % oldest train / 15 % val / 15 % newest test, on **matured loans only** (issued 2010+, 36- or 60-month term already elapsed by 2018-12; ~800k loans) | LightGBM **0.7151** (Gini 0.4302, KS 0.3137); LogReg 0.7041; WoE scorecard 0.704 | not reported | — |
 | **Tanish-Srivastava/credit-risk-scorecard** | random | WoE + LogReg **0.692** (Gini 0.385, KS 27.7) | LC grade **0.680** | +0.012 |
 | **Arnav618/lending-club-credit-risk** | not specified | tuned XGBoost **0.7265** (baseline 0.7177), bootstrap CI [0.7127, 0.7226] | not reported | — |
 | **Nasha14/Lending-Club-Loan-Default-Prediction** | not specified | XGBoost **0.735**; LogReg 0.649 | not reported | — |
@@ -104,6 +121,11 @@ Our notebook 03 §9.7 computes decline rate, FPR, FNR and a disparate-impact rat
 region, income band and housing status. **Caveat we keep prominent:** these are proxies,
 the dataset has no protected attributes, so it is a screen, not a compliance audit.
 
+On the real file the screen finds something: region passes (disparate-impact ratio
+0.850), but **income band (0.534) and housing (0.674) are flagged**, and the lowest income
+quartile's false-positive rate is double the highest's (0.418 vs 0.209). A project that does
+not screen cannot see this.
+
 ### 4.2 Problem framing as an explicit artifact
 
 No surveyed project has an equivalent of our notebook 01: the four framing questions, the
@@ -112,8 +134,11 @@ result is seen**. Most projects open directly with data loading.
 
 ### 4.3 Overfitting diagnosis via a train-vs-CV gap table
 
-Not reported by any surveyed project. In our run it is what explains the model ranking —
-XGBoost gap +0.396 and HistGB +0.332 versus logistic regression +0.044.
+Not reported by any surveyed project. On the real file it shows that **no model
+overfits**: train-vs-CV gaps are +0.016 (XGBoost), +0.014 (Random Forest), +0.002
+(HistGB) and −0.018 (logistic regression). That rules out memorisation as an explanation
+for the ranking, which no surveyed project can say. (The large gaps reported here earlier
+came from the synthetic smoke test and did not survive contact with real data.)
 
 ### 4.4 Missingness treated as signal
 
@@ -136,12 +161,25 @@ This section is not padding. These are real deficits against specific published 
 ### 5.1 Right-censoring: solved by others, only documented by us
 
 Our limitation 2 says the terminal-status filter enriches the late test period with loans
-that resolved early. **vaibhavkev actually fixes this**: restrict to *"36-month loans
-issued 2012–2015"* which *"had all reached maturity by the 2018 Q4 snapshot"*, leaving only
-*"147 of 589,635 (0.025 %)"* unresolved.
+that resolved early. **Both out-of-time projects in §2 actually fix this:**
 
-That is a strictly better design than ours. Adopting it is the single highest-value change
+- **vaibhavkev** restricts to *"36-month loans issued 2012–2015"* which *"had all reached
+  maturity by the 2018 Q4 snapshot"*, leaving only *"147 of 589,635 (0.025 %)"* unresolved.
+- **Arturo-GA** keeps loans originated from 2010 whose term (36 or 60 months) had already
+  elapsed by the 2018-12 cut — *"Sin este filtro, las cosechas 2016–2018 contienen solo los
+  préstamos que se resolvieron antes de tiempo (prepagos y defaults tempranos)"* — leaving
+  about 800k loans. Unlike vaibhavkev it keeps the 60-month product.
+
+That is a strictly better design than ours, and among the OOT projects we are the only one
+not using it. Adopting it is the single highest-value change
 available to this project.
+
+The real run makes the cost of not doing it concrete. Only 37.8% of our post-cutoff loans
+had resolved (11.4% of 2018 issues), which flips our split from 39/61 in the raw file to
+61/39 after filtering. Mid-period test quarters are enriched with defaults (25–26% vs
+18.4% in training), while the newest are enriched with early prepayments (2018Q4: 2.4%
+default rate, ROC-AUC 0.551). That last quarter alone produces a spurious −0.008
+AUC/quarter decay slope in our monitoring notebook.
 
 ### 5.2 Our cost ratio is invented; Arnav618's is measured
 
@@ -154,8 +192,9 @@ a guess that is demonstrably load-bearing.
 ### 5.3 No confidence interval on our lift
 
 vaibhavkev reports +0.018 AUC with a **paired-bootstrap 95 % CI [+0.016, +0.020]**; Arnav618
-reports a bootstrap CI too. We report a point estimate. Without a CI we cannot claim our
-lift over B1 is statistically distinguishable from zero.
+reports a bootstrap CI too. We report point estimates (+0.0205 packaged, +0.0290 best). Without a CI we cannot
+claim our lift over B1 is statistically distinguishable from zero — or, given it exceeds
+every published lift, that it is not inflated.
 
 ### 5.4 No business translation
 
@@ -178,9 +217,13 @@ opposite**: removing `grade`/`sub_grade` changed AUC only *"0.7350 → 0.7335"* 
 nothing. Our claim is plausible but currently unverified, and the one published test of it
 points the other way.
 
-### 5.7 No results on real data yet
+### 5.7 ~~No results on real data yet~~ — resolved
 
-The others ran on ~1.3M resolved loans. We have not.
+The pipeline now runs end to end on the full Kaggle file (1,344,989 resolved loans after
+cleaning); see §1. The first real run also caught a schema bug the synthetic sample could
+not: the reference column list did not match the real header (`tax_liens`,
+`verification_status_joint`), and the completeness assertion failed the notebook as
+designed.
 
 ---
 
@@ -188,7 +231,7 @@ The others ran on ~1.3M resolved loans. We have not.
 
 | # | Action | Evidence |
 |---|---|---|
-| 1 | Run the pipeline on the real Kaggle file | everything else is blocked on this |
+| 1 | ~~Run the pipeline on the real Kaggle file~~ — done, see §1 | — |
 | 2 | Adopt matured-vintage selection to fix right-censoring | §5.1, vaibhavkev |
 | 3 | Derive the cost ratio from interest margin instead of guessing | §5.2, Arnav618 |
 | 4 | Add paired-bootstrap CI to the lift over B1 | §5.3, vaibhavkev |
@@ -196,8 +239,10 @@ The others ran on ~1.3M resolved loans. We have not.
 | 6 | Convert the lift into dollars at several decline rates | §5.4, vaibhavkev |
 | 7 | Make the leakage check fail the run, not just document it | §5.5, Arturo-GA |
 
-Items 2–7 are all cheap. Together they would move this project from "comparable method,
-untested numbers" to a defensible result.
+Items 2–7 are all cheap. Item 1 moved this project from "comparable method, untested
+numbers" to "comparable method, comparable numbers". Items 4 and 5 are now the most urgent,
+because our lift over B1 is above the published range and needs a CI and an ablation before
+it can be claimed.
 
 ---
 

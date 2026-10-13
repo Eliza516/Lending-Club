@@ -119,7 +119,8 @@ on no random seed, so other groups reproduce it exactly.
 
 1. `issue_d` is a proxy for application time.
 2. Right-censoring: unfinished loans are dropped, so late test years are measured on an
-   early-resolving subset (evidence: NB02 Table 4).
+   early-resolving subset (evidence: NB02 Table 4). The direction of the bias can differ by
+   vintage; read it from the table, do not assume it.
 3. Accepted loans only (no reject inference).
 4. Drift is measured (NB03 §9.6/§9.8, NB04), not corrected.
 5. Threshold uses F1 because the data contains no real costs.
@@ -131,5 +132,6 @@ on no random seed, so other groups reproduce it exactly.
 - Python >= 3.10, `RANDOM_SEED = 42` wherever a seed is needed.
 - Save every figure with `plt.savefig(..., dpi=150, bbox_inches="tight")` into `artifacts/figures/`.
 - Never commit `data/` or `artifacts/` (git-ignored).
-- `docs/*.md` belong to the previous version of the project (they quote external numbers and
-  describe SHAP/PSI steps that no longer exist). Do not cite them; they are pending removal.
+- `docs/*` describe the previous version of the project (they quote external numbers and
+  mention SHAP/PSI steps that no longer exist). Do not cite them as findings of the current
+  notebooks; they need to be rewritten or removed once the user decides.
