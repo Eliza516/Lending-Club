@@ -1,83 +1,70 @@
-# Lending Club Credit Scoring
+# Dự đoán vỡ nợ Lending Club (nhánh `simple`)
 
-Predict whether a Lending Club loan will be **charged off**, using only information known
-when the loan is decided. Midterm project for *Statistical Learning* (DS66A / DS66B).
+Dự đoán một khoản vay có bị **xóa nợ (Charged Off)** hay không, chỉ từ thông tin biết được lúc xét duyệt.
+Project môn *Học thống kê* (DS66A / DS66B). Nhánh `simple` là bản làm lại **đơn giản, theo từng bước**:
+mỗi hàm và mỗi kết quả nằm ở một ô code riêng, và mọi con số/nhận xét đều do code in ra từ dữ liệu thật.
 
-Every number in the notebooks is printed by code from the real Kaggle file. Nothing is
-copied from outside sources.
+> Bản cũ (4 notebook, nhiều kỹ thuật hơn) nằm trong `archive/`.
 
-## Data
+## Dữ liệu
 
 Kaggle: [wordsforthewise/lending-club](https://www.kaggle.com/datasets/wordsforthewise/lending-club).
-Put `accepted_2007_to_2018Q4.csv.gz` in `data/raw/` (it is git-ignored, ~390 MB compressed).
-There is no synthetic fallback: the notebooks stop with a clear message if the file is missing.
+Đặt `accepted_2007_to_2018Q4.csv.gz` vào `data/raw/` (file bị git bỏ qua). Không có dữ liệu giả lập:
+thiếu file thì notebook dừng và báo rõ.
 
-## Run
+## Cách chạy
 
 ```bash
 pip install -r requirements.txt
-jupyter lab        # run notebooks 01 -> 02 -> 03 -> 04, each top to bottom
+jupyter lab        # chạy notebook 1 rồi notebook 2, mỗi cái từ trên xuống dưới
 ```
 
-Notebook 03 takes about 35 minutes on 4 CPU cores. Set `STEP = 10` at the top of it for a
-10x faster trial run (do not quote results from a trial run).
+Notebook 1 mất vài phút (nạp file nén lớn, đỉnh khoảng 10 GB RAM). Notebook 2 mất khoảng 10 phút.
 
-## What each notebook does
+## Các bước đã làm
 
-| Notebook | Steps | What you get |
+| Notebook | Bước | Nội dung |
 |---|---|---|
-| `01_problem_framing` | 1-2 | Problem, input/output, baselines, metric choice, split plan. No data loaded. |
-| `02_data_and_features` | 3-7 | Data dictionary, target, **out-of-time split**, leakage smell test, EDA on training rows, cleaning, features |
-| `03_modeling_and_evaluation` | 8-10 | Baselines, 3 models, time-aware cross-validation, tuning, threshold, test evaluation, bootstrap, explanation |
-| `04_packaging_and_monitoring` | 11 | Save/reload check, scoring one application, drift checks, retraining rule, model card |
+| `01_hieu_du_lieu_va_chia_tap` | 1 | Tóm tắt đề bài; từ điển giải thích đủ 151 cột (có `assert` khớp header) |
+| | 2 | Nạp **toàn bộ dữ liệu gốc**, đối chiếu từ điển với dữ liệu thật, định nghĩa nhãn bằng bằng chứng |
+| | 3 | EDA về cấu trúc thời gian; luật "đã đáo hạn"; chia **70 / 15 / 15 theo thời gian** (kiểu Arturo-GA) |
+| `02_lam_sach_va_feature` | 4 | Làm sạch; pipeline học từ train, áp sang val/test; ô chứng minh không rò rỉ |
+| | 5 | Gán 151 cột vào nhóm (mỗi nhóm có bằng chứng), feature engineering, lọc tương quan, pipeline hoàn chỉnh |
 
-## Design choices
+Các bước mô hình hóa và đánh giá sẽ thêm sau.
 
-- **Target:** `1` = Charged Off, `0` = Fully Paid. Unfinished loans are dropped.
-- **Split:** loans issued before 2016-01-01 are train, on or after are test. Fixed and shared by
-  all groups; `artifacts/split_manifest.json` holds counts and an MD5 of the training ids.
-- **Leakage:** only columns known at application time are kept (table in notebook 02 §3.2).
-  A code test (notebook 02 §4.3) shows post-loan columns such as `last_fico_range_high` predict
-  far better than any legitimate column - the signature of leakage.
-- **No contamination:** imputing, scaling and encoding live inside a scikit-learn `Pipeline`
-  fitted on training rows only; cross-validation is `TimeSeriesSplit`.
-- **Baselines:** B0 = predict nobody defaults; **B1 = Lending Club's own sub-grade**. The claim
-  is the lift over B1, not the raw AUC.
-- **Models:** logistic regression, random forest, histogram gradient boosting. The final one is
-  chosen by training-only cross-validation, not by looking at the test set.
+## Kết quả của bước 1-5 (đọc từ output notebook)
 
-## Results (from notebooks 03 and 04, full data)
+**Chia dữ liệu** (notebook 1):
 
-| | ROC-AUC (test) | PR-AUC (test) |
-|---|---|---|
-| B0 majority class | 0.500 | 0.224 |
-| B1 Lending Club sub-grade | 0.687 | 0.365 |
-| Logistic regression | 0.704 | 0.387 |
-| Random forest | 0.704 | 0.396 |
-| **Histogram gradient boosting (chosen)** | **0.711** | **0.404** |
+| | Số dòng | Giai đoạn phát hành | Tỷ lệ vỡ nợ |
+|---|---|---|---|
+| train | 464.185 | 2010-01 đến 2015-04 | 0,148 |
+| val | 95.405 | 2015-05 đến 2015-08 | 0,148 |
+| test | 107.434 | 2015-09 đến 2015-12 | 0,148 |
 
-- Lift over B1: **+0.024 AUC**, 95% bootstrap range [+0.023, +0.025] (notebook 03 §9.3).
-- Without Lending Club's own `grade` and `int_rate`, the cross-validated lift over B1 falls from
-  +0.023 to +0.013 (§8.8): part of the result depends on Lending Club's own assessment.
-- Out-of-time AUC (0.711) is lower than a random split's (0.720), as expected (§9.7).
-- The model predicts fewer defaults than happened on average (0.182 vs 0.224): use the score to
-  **rank** applicants, not as an exact probability (§9.6).
-- Choosing among the three models matters little (0.007 AUC spread on test); the gap to B1 is larger.
+- File gốc 2.260.701 dòng, 151 cột; 1.345.310 dòng có nhãn; sau khi lọc từ 2010 và đã đáo hạn còn 667.024 dòng.
+- Luật đáo hạn kiểm chứng bằng code: nhóm đã đáo hạn có 99,6% khoản vay đã có kết quả, nhóm chưa đáo hạn 42,4%.
 
-## Limitations
+**Chọn feature** (notebook 2): 151 cột gốc -> 57 cột ứng viên -> 46 feature số + 6 feature phân loại,
+tức 161 cột sau mã hóa one-hot. Cột bị loại theo nhóm: sau khi vay / không rõ thời điểm (42), trống hoàn toàn
+trong train (32), (gần như) hằng số (7), thiếu quá nhiều trong train (5), quá nhiều giá trị chữ (4), định danh (2),
+nhãn và cột phụ (2).
 
-1. `issue_d` (loan issue date) stands in for the application date.
-2. Unfinished loans are dropped, so late test years are measured on an early-resolving subset
-   (notebook 02, Table 4).
-3. Only accepted loans are in the data (no reject inference).
-4. Drift is measured, not corrected (notebook 04). A few extreme `loan_to_income` values in the
-   test period slip through the cleaning rule; notebook 04 §11.3 documents this.
-5. The decision threshold maximises F1 because the data has no real cost of errors.
-6. No fairness analysis: the data has no protected attributes.
+## Hạn chế đã biết (đều do notebook đo được)
 
-## Repository notes
+1. **Val và test chỉ có khoản vay 36 tháng** (100%), còn train có 11,8% khoản 60 tháng, vì khoản 60 tháng phát hành
+   muộn chưa đủ thời gian đáo hạn. Test chỉ gồm 4 tháng cuối 2015.
+2. **32 cột trống hoàn toàn trong train**, trong đó 17 cột chỉ bắt đầu có dữ liệu ở giai đoạn val/test, nên không dùng được.
+3. **34 cột bureau chỉ có dữ liệu từ 2012** và bị điền trung vị cho các khoản vay 2010-2011.
+4. **5 cột dạng "số tháng kể từ sự kiện"** bị loại vì thiếu trên 30% trong train, dù giá trị thiếu có thể có nghĩa là
+   "chưa từng xảy ra"; chưa kiểm tra bằng code xem việc đó có mất tín hiệu không.
+5. `issue_d` (ngày giải ngân) được dùng thay cho ngày nộp đơn; chỉ có khoản vay đã được chấp nhận trong dữ liệu.
+6. Cách chia này **thay cho mốc chung 2016-01-01** của bản cũ; các nhóm khác dùng cùng dataset cần đối chiếu
+   `md5_id_train` trong `artifacts/split_manifest.json`.
 
-- `CLAUDE.md` holds the working rules for Claude Code sessions in this repo.
-- `docs/` contains write-ups from an earlier version of the project. They mention steps the
-  notebooks no longer contain (SHAP, PSI) and numbers that do not come from the current
-  notebooks, so treat them as outdated until rewritten.
+## Ghi chú về repo
+
+- `CLAUDE.md`: quy tắc làm việc cho các phiên Claude Code (nguyên tắc "mọi kết luận có code suy ra").
+- `docs/`: tài liệu của bản cũ, có số liệu từ nguồn ngoài và các bước không còn trong notebook mới.
+  Coi là lỗi thời cho đến khi được viết lại.
