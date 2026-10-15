@@ -1,137 +1,76 @@
-# CLAUDE.md — Lending Club Credit Scoring
+# CLAUDE.md - Lending Club Credit Scoring (nhánh `simple`)
 
-Guidance for Claude Code sessions working in this repository.
+Hướng dẫn cho các phiên Claude Code làm việc trong repo này.
 
-## Project
+## Dự án
 
-Predict **loan default** on the Lending Club accepted-loans dataset
-(Kaggle: `wordsforthewise/lending-club`) from **application-time features only**.
-Binary classification: `1 = Charged Off`, `0 = Fully Paid`.
+Dự đoán **vỡ nợ** trên bộ dữ liệu khoản vay Lending Club (Kaggle: `wordsforthewise/lending-club`)
+chỉ từ **thông tin biết được lúc xét duyệt**. Phân loại nhị phân: `1 = Charged Off`, `0 = Fully Paid`.
 
-University midterm for *Statistical Learning* (DS66A / DS66B). The course brief is the
-`Midterm Projects ... .xlsx` file in the repo root.
+Đây là project giữa/cuối kỳ môn *Học thống kê* (DS66A / DS66B), do sinh viên làm và phải tự giải thích được
+từng dòng code. Nhánh `simple` là bản làm lại **đơn giản**, theo từng bước. Bản cũ nằm trong `archive/`.
 
-## Guiding principle: simple, and every claim comes from code
+## Nguyên tắc số một: mọi kết luận đều có code suy ra
 
-The author is a student who must be able to explain every line.
+- **Mọi con số và nhận xét về dữ liệu phải do một ô code in ra.** Không gõ tay thống kê, tỷ lệ, AUC hay xếp hạng
+  vào markdown; không dùng số liệu từ nguồn ngoài (bài báo, blog, repo khác) để kết luận về dữ liệu của mình.
+  Markdown chỉ giải thích *làm gì* và *vì sao*; phần nhận xét là ô code in câu bằng f-string từ biến đã tính.
+- Khi tham khảo project/paper khác: chỉ **nêu tên + link nguồn gốc + tên kỹ thuật**, không trích số, và ghi rõ
+  chưa đối chiếu nội dung gốc. Sau đó phải có ô code kiểm chứng lựa chọn đó trên dữ liệu của mình.
+- Nếu kết quả không như kỳ vọng thì notebook phải nói đúng như vậy, không sửa lời cho khớp.
+- Mỗi hàm một ô code, mỗi kết quả (bảng, in số, biểu đồ) một ô code. Code đơn giản, dùng pandas/scikit-learn
+  thuần, không cần kỹ thuật cao siêu. Một kỹ thuật cần giải thích dài mới hiểu thì bỏ.
+- **Viết hoàn toàn bằng tiếng Việt** (markdown, chú thích, câu in ra). Tên biến/hàm giữ tiếng Anh.
+- Notebook được commit **kèm output** (output là bằng chứng). Mọi thay đổi phải chạy lại từ đầu đến cuối.
 
-- **Every number or insight in a notebook is printed by a code cell.** Never type a
-  statistic, a default rate, an AUC or a ranking into markdown by hand, and never quote
-  numbers from outside the project (papers, blogs, other repos). Markdown explains *what
-  we do and why*; the discussion after each figure/table is a code cell that prints
-  f-string sentences from the computed objects.
-- If an expectation is not borne out by the data (e.g. out-of-time AUC not lower than
-  random-split AUC), the notebook must say so; do not rewrite the narrative to fit.
-- Prefer plain pandas / scikit-learn calls over clever code. No SHAP, no custom
-  classes, no hidden helper modules. If a technique needs more than a short paragraph
-  to explain to a classmate, leave it out.
-- The notebooks are committed **with outputs**: the outputs are the evidence. Re-running
-  them top to bottom is part of any change.
-
-### Hard constraints from the brief
-
-- **All writing in English**, 100% — markdown cells, figure captions, README.
-- **Every figure and table needs a caption AND a discussion** (caption in markdown,
-  discussion as a printing code cell that ends with an `Action →` line when a decision
-  follows).
-- **Every metric used must be defined** (Table 1 of notebook 03) with when it is
-  appropriate and its weakness.
-- **Groups sharing this dataset share one train/test split** — see below.
-- Prefer tables and figures over walls of text.
-
-## Layout
+## Bố cục
 
 ```
-notebooks/01_problem_framing.ipynb          Steps 1-2   decisions, no data
-notebooks/02_data_and_features.ipynb        Steps 3-7   data -> clean.parquet
-notebooks/03_modeling_and_evaluation.ipynb  Steps 8-10  baselines, models, evaluation, explanation
-notebooks/04_packaging_and_monitoring.ipynb Step 11     reload, drift, retraining rule, model card
+notebooks/01_hieu_du_lieu_va_chia_tap.ipynb   Bước 1-3: đề bài, từ điển 151 cột, nạp dữ liệu gốc, EDA thời gian, chia 70/15/15
+notebooks/02_lam_sach_va_feature.ipynb        Bước 4-5: làm sạch, pipeline, chọn/lọc feature theo nhóm, feature engineering
+archive/                                      Các notebook bản cũ (01-04), giữ để tham khảo
+docs/                                         Tài liệu của bản cũ (xem lưu ý cuối file)
 
-data/raw/accepted_2007_to_2018Q4.csv.gz  Kaggle file (git-ignored, required)
-data/processed/clean.parquet, features.json   hand-off 02 -> 03/04 (git-ignored)
-artifacts/                               figures, metrics.csv, model.joblib, threshold.json,
-                                         split_manifest.json, model_card.json (git-ignored)
+data/raw/accepted_2007_to_2018Q4.csv.gz       File Kaggle (git-ignored, bắt buộc)
+data/processed/{train,val,test}.parquet       Notebook 1 -> notebook 2 (đủ 151 cột gốc + vài cột phụ), data_dictionary.csv
+artifacts/                                    split_manifest.json, preprocess_pipeline.joblib, feature_info.json,
+                                              column_groups.csv, figures/  (git-ignored)
 ```
 
-**Notebook-first rule:** no `src/` package, no standalone `.py` modules. Helper functions
-are defined in a cell near their first use.
+Các bước sau (mô hình hóa, đánh giá...) sẽ được thêm vào sau khi bước 1-5 hoàn tất.
 
-There is no synthetic-data fallback: the real file is required so that every printed number
-is a real finding.
+Không tạo `src/` hay file `.py` riêng: code nằm trong notebook, hàm định nghĩa ngay gần chỗ dùng đầu tiên.
+Không có dữ liệu giả lập: file thật là bắt buộc để mọi con số in ra là kết quả thật.
 
-## Setup and run
+## Cách chia dữ liệu (kiểu Arturo-GA, theo thời gian)
 
-```bash
-pip install -r requirements.txt
-jupyter lab            # run 01 -> 02 -> 03 -> 04, each top to bottom
-```
+1. Chỉ giữ khoản vay **có nhãn** (`Fully Paid` / `Charged Off`), **phát hành từ 2010**, và **đã đáo hạn**
+   (tháng giải ngân + kỳ hạn không muộn hơn tháng cuối của dữ liệu, lấy từ chính dữ liệu).
+2. Sắp theo `issue_d` (rồi `id`), cắt hai **ngày** tại vị trí 70% và 85%: train < val < test.
+3. `assert` thứ tự thời gian giữ trong code. Manifest `split_manifest.json` có số dòng, ngày cắt, MD5 id train.
 
-Notebook 03 has a `STEP` constant (1 = all rows, 10 = every 10th row) for quick trial runs.
-Commit only runs with `STEP = 1`.
+Hệ quả đã được notebook 1 đo bằng code (nhớ khi đánh giá mô hình): do luật đáo hạn, val và test chỉ có khoản
+vay 36 tháng, còn train có cả 60 tháng.
 
-## Leakage rules
+**Cách chia này thay cho mốc chung 2016-01-01 của bản cũ.** Nếu các nhóm khác cùng dùng dataset này, phải báo
+và đối chiếu `md5_id_train` trong manifest.
 
-### 1. Target leakage — only columns known at application time
-Notebook 02 §3.2 lists the kept columns with *why each is known at application time*.
-Everything else in the 151-column file is dropped. §4.3 runs a code smell test (single-column
-ROC-AUC on training rows) that shows what post-origination columns (`total_pymnt`,
-`recoveries`, `last_pymnt_amnt`, `last_fico_range_high`) look like: far above any
-application-time column. A new column must be added to the §3.2 dictionary with its timing
-reason before it can be used. Never use `loan_status` or any payment/recovery/settlement/
-hardship column as a feature.
+## Quy tắc chống rò rỉ
 
-### 2. Train–test contamination — split first, transform second
-Anything that *learns a number from data* (median, mean, std, category list, any target
-encoding) lives inside the `Pipeline` in notebook 03 and is fitted on training rows only.
-Notebook 02 only applies fixed row-by-row rules (string parsing, ratios, logs, fixed bounds).
+- Chỉ dùng cột biết được lúc nộp đơn. Từ điển (notebook 1, mục 1.3) ghi *giả thuyết* cho từng cột; notebook 2
+  mục 5.3 kiểm chứng bằng code (ROC-AUC từng cột đứng một mình trên train, so với cột lúc nộp đơn tốt nhất).
+  Cột "không rõ thời điểm" bị loại cho an toàn. Cột mới phải được thêm vào từ điển kèm lý do trước khi dùng.
+- **Chia trước, biến đổi sau.** Mọi thứ *học một con số từ dữ liệu* (trung vị, trung bình, độ lệch chuẩn, danh
+  sách giá trị one-hot, mọi ngưỡng như `REVOL_UTIL_CAP`, `LOAN_TO_INCOME_CAP`, `MAX_MISSING`) chỉ tính trên `train`.
+- Quy tắc làm sạch và feature engineering là công thức cố định theo từng dòng. Phần học nằm trong `Pipeline`
+  (`ColumnTransformer`), chỉ `fit` trên train; val/test chỉ `transform`. Có ô chứng minh điều đó trong notebook 2.
+- EDA/chọn feature chỉ dùng train. Ngoại lệ có ghi rõ: EDA thời gian ở notebook 1 (bước 3) dùng toàn bộ khoản
+  vay có nhãn nhưng chỉ hỏi về cấu trúc thời gian, không hỏi quan hệ feature-nhãn.
+- Khi làm bước mô hình: validation theo thời gian (`TimeSeriesSplit`), không dùng K-fold xáo trộn.
 
-- `X_test` is only passed to `.predict*` / `.transform`, never `.fit`.
-- Cross-validation is run on the `Pipeline` object, so preprocessing is re-fitted per fold.
-- Use `clone(model)` inside `make_pipeline` so two pipelines never share one fitted model.
-- The decision threshold is chosen on a validation slice (the latest 20% of training rows
-  by date), never on test scores.
-- EDA and every data decision use training rows only. The only place all years are shown is
-  the label-maturity diagnostic (NB02 §4.2), which informs a limitation, not a modelling choice.
+## Quy ước
 
-## The shared split — out-of-time
-
-Loans issued **before `2016-01-01` are train**, on or after are test. A frozen date depends
-on no random seed, so other groups reproduce it exactly.
-
-- **Never change the cutoff** without regenerating `artifacts/split_manifest.json` and telling
-  the other groups. The manifest holds counts and an MD5 of the sorted training ids.
-- Cross-validate with `TimeSeriesSplit`, never shuffled K-fold.
-- The random stratified split (`random_state=42`, `test_size=0.2`) exists only as a reference
-  (NB03 §9.7). The notebook prints whether out-of-time AUC really is lower; if it is not,
-  investigate before reporting.
-- `assert train.issue_d.max() < test.issue_d.min()` stays in the notebooks.
-
-## Process discipline
-
-1. **Baselines before models, models before tuning.** B0 majority class; **B1 = Lending Club
-   `sub_grade`** — the incumbent. The claim is the *lift over B1* (with a bootstrap range),
-   not the absolute AUC. NB03 §8.8 shows the model with and without `grade`/`int_rate`.
-2. **The split is made before exploring** (NB02 §4 before §5).
-3. **The test set is opened once** (NB03 §9.2). Model choice comes from training-only
-   cross-validation; later test-set tables are analysis, not selection.
-
-## Limitations that must stay in the conclusion of notebook 03
-
-1. `issue_d` is a proxy for application time.
-2. Right-censoring: unfinished loans are dropped, so late test years are measured on an
-   early-resolving subset (evidence: NB02 Table 4). The direction of the bias can differ by
-   vintage; read it from the table, do not assume it.
-3. Accepted loans only (no reject inference).
-4. Drift is measured (NB03 §9.6/§9.8, NB04), not corrected.
-5. Threshold uses F1 because the data contains no real costs.
-6. No fairness analysis — the data has no protected attributes. Do not describe anything
-   as a fairness or compliance audit.
-
-## Conventions
-
-- Python >= 3.10, `RANDOM_SEED = 42` wherever a seed is needed.
-- Save every figure with `plt.savefig(..., dpi=150, bbox_inches="tight")` into `artifacts/figures/`.
-- Never commit `data/` or `artifacts/` (git-ignored).
-- `docs/*` describe the previous version of the project (they quote external numbers and
-  mention SHAP/PSI steps that no longer exist). Do not cite them as findings of the current
-  notebooks; they need to be rewritten or removed once the user decides.
+- Python >= 3.10, `SEED = 42`, lưu hình bằng `plt.savefig(..., dpi=150, bbox_inches="tight")` vào `artifacts/figures/`.
+- Không commit `data/` và `artifacts/` (git-ignored).
+- `docs/*` mô tả bản cũ (có số liệu từ nguồn ngoài và các bước không còn tồn tại như SHAP/PSI). Không trích làm
+  kết quả của notebook hiện tại; cần viết lại hoặc xóa khi người dùng quyết định.
